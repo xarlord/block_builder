@@ -87,6 +87,9 @@ dependencies {
   implementation(libs.hilt.android)
   ksp(libs.hilt.compiler)
 
+  // Core modules
+  implementation(project(":core:designsystem"))
+
   // Feature modules
   implementation(project(":feature:chat"))
   implementation(project(":feature:build"))

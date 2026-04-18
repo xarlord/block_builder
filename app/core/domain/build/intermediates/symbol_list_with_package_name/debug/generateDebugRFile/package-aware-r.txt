@@ -1,1 +1,0 @@
-com.architectai.core.domain
