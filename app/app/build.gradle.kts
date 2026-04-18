@@ -89,6 +89,7 @@ dependencies {
 
   // Core modules
   implementation(project(":core:designsystem"))
+  implementation(project(":core:domain"))
 
   // Feature modules
   implementation(project(":feature:chat"))
