@@ -1,0 +1,179 @@
+[
+  {
+    "text": "Generate Animal Compositions",
+    "center": "[540,363]",
+    "key": 3506402
+  },
+  {
+    "text": "Select an animal to generate its tile composition:",
+    "center": "[435,507]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[540,699]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[540,901]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[540,1103]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[540,1305]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[540,1507]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[540,1709]",
+    "key": 3506402
+  },
+  {
+    "text": "Lion",
+    "center": "[535,680]",
+    "key": 3506402
+  },
+  {
+    "text": "17 tiles",
+    "center": "[540,723]",
+    "key": 3506402
+  },
+  {
+    "text": "Crocodile",
+    "center": "[540,882]",
+    "key": 3506402
+  },
+  {
+    "text": "19 tiles",
+    "center": "[496,925]",
+    "key": 3506402
+  },
+  {
+    "text": "Dog",
+    "center": "[529,1084]",
+    "key": 3506402
+  },
+  {
+    "text": "24 tiles",
+    "center": "[540,1127]",
+    "key": 3506402
+  },
+  {
+    "text": "Car",
+    "center": "[525,1286]",
+    "key": 3506402
+  },
+  {
+    "text": "14 tiles",
+    "center": "[540,1329]",
+    "key": 3506402
+  },
+  {
+    "text": "Tram",
+    "center": "[540,1488]",
+    "key": 3506402
+  },
+  {
+    "text": "18 tiles",
+    "center": "[535,1531]",
+    "key": 3506402
+  },
+  {
+    "text": "Flower",
+    "center": "[540,1690]",
+    "key": 3506402
+  },
+  {
+    "text": "20 tiles",
+    "center": "[520,1733]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "focusable"
+    ],
+    "state": [
+      "selected"
+    ],
+    "center": "[127,2232]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[403,2232]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[678,2232]",
+    "key": 3506402
+  },
+  {
+    "interactions": [
+      "clickable",
+      "focusable"
+    ],
+    "center": "[953,2232]",
+    "key": 3506402
+  },
+  {
+    "text": "AI Architect",
+    "center": "[218,147]",
+    "key": 3506402
+  },
+  {
+    "text": "Chat",
+    "center": "[127,2274]",
+    "key": 3506402
+  },
+  {
+    "text": "Build",
+    "center": "[403,2274]",
+    "key": 3506402
+  },
+  {
+    "text": "Library",
+    "center": "[678,2274]",
+    "key": 3506402
+  },
+  {
+    "text": "Gallery",
+    "center": "[953,2274]",
+    "key": 3506402
+  }
+]

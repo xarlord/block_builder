@@ -3,6 +3,7 @@ plugins {
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
   alias(libs.plugins.ksp)
+  alias(libs.plugins.hilt)
 }
 
 android {
@@ -71,6 +72,8 @@ dependencies {
   // Local tests: jUnit, coroutines, Android runner
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation(libs.mockk)
+  testImplementation(libs.turbine)
 
   // Instrumented tests: jUnit rules and runners
   androidTestImplementation(libs.androidx.test.core)
@@ -86,10 +89,12 @@ dependencies {
   // Hilt
   implementation(libs.hilt.android)
   ksp(libs.hilt.compiler)
+  implementation(libs.hilt.navigation.compose)
 
   // Core modules
   implementation(project(":core:designsystem"))
   implementation(project(":core:domain"))
+  implementation(project(":core:data"))
 
   // Feature modules
   implementation(project(":feature:chat"))

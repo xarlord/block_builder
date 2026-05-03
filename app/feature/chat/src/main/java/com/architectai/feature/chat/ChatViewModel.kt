@@ -2,14 +2,19 @@ package com.architectai.feature.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.architectai.core.data.llm.LLMClient
+import com.architectai.core.data.llm.LLMResult
+import com.architectai.core.data.repository.CompositionRepository
 import com.architectai.core.domain.model.Composition
 import com.architectai.core.domain.model.MockCompositions
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
+import javax.inject.Inject
 
 data class ChatMessage(
     val id: String = UUID.randomUUID().toString(),
@@ -25,18 +30,22 @@ data class ChatUiState(
     val error: String? = null
 )
 
-class ChatViewModel : ViewModel() {
+@HiltViewModel
+class ChatViewModel @Inject constructor(
+    private val llmClient: LLMClient,
+    private val compositionRepository: CompositionRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     /**
-     * Map of keywords to mock composition IDs for prompt matching.
-     * This will be replaced by actual LLM API integration.
+     * Map of keywords to mock composition IDs for demo/fallback mode.
+     * Used when LLM API is unavailable.
      */
     private val keywordMap: Map<String, String> = mapOf(
         "lion" to "mock_lion_001",
-        "cat" to "mock_lion_001", // similar to lion
+        "cat" to "mock_lion_001",
         "crocodile" to "mock_crocodile_001",
         "alligator" to "mock_crocodile_001",
         "dog" to "mock_dog_001",
@@ -53,7 +62,6 @@ class ChatViewModel : ViewModel() {
     fun sendMessage(text: String) {
         if (text.isBlank()) return
 
-        // Add user message
         val userMessage = ChatMessage(text = text.trim(), isUser = true)
         _uiState.value = _uiState.value.copy(
             messages = _uiState.value.messages + userMessage,
@@ -63,18 +71,15 @@ class ChatViewModel : ViewModel() {
         )
 
         viewModelScope.launch {
-            // Simulate AI processing delay
-            delay(800..1500L)
+            // Try real LLM API first
+            val result = llmClient.generateComposition(text.trim())
 
-            // Match prompt to mock composition
-            val lowerText = text.lowercase().trim()
-            val matchedId = keywordMap.entries.firstOrNull { (keyword, _) ->
-                lowerText.contains(keyword)
-            }?.value
+            when (result) {
+                is LLMResult.Success -> {
+                    val composition = result.composition
+                    // Persist the generated composition
+                    compositionRepository.saveComposition(composition)
 
-            if (matchedId != null) {
-                val composition = MockCompositions.getCompositionById(matchedId)
-                if (composition != null) {
                     val aiMessage = ChatMessage(
                         text = "I've created a ${composition.name.lowercase()} composition with ${composition.tiles.size} tiles. " +
                             "It uses ${composition.tiles.map { it.tileType.displayName }.distinct().size} different tile types. " +
@@ -86,21 +91,50 @@ class ChatViewModel : ViewModel() {
                         generatedComposition = composition,
                         isLoading = false
                     )
-                } else {
-                    sendErrorMessage()
                 }
-            } else {
-                // No match found — helpful response
+                is LLMResult.Error -> {
+                    // Fall back to keyword matching
+                    handleKeywordFallback(text)
+                }
+            }
+        }
+    }
+
+    private suspend fun handleKeywordFallback(text: String) {
+        delay((800..1500L).random())
+
+        val lowerText = text.lowercase().trim()
+        val matchedId = keywordMap.entries.firstOrNull { (keyword, _) ->
+            lowerText.contains(keyword)
+        }?.value
+
+        if (matchedId != null) {
+            val composition = MockCompositions.getCompositionById(matchedId)
+            if (composition != null) {
                 val aiMessage = ChatMessage(
-                    text = "I can create compositions for: lion, crocodile, dog, car, tram, or flower. " +
-                        "Try describing one of those and I'll generate the tile layout!",
+                    text = "I've created a ${composition.name.lowercase()} composition with ${composition.tiles.size} tiles. " +
+                        "It uses ${composition.tiles.map { it.tileType.displayName }.distinct().size} different tile types. " +
+                        "Tap \"View on Canvas\" to see it!",
                     isUser = false
                 )
                 _uiState.value = _uiState.value.copy(
                     messages = _uiState.value.messages + aiMessage,
+                    generatedComposition = composition,
                     isLoading = false
                 )
+            } else {
+                sendErrorMessage()
             }
+        } else {
+            val aiMessage = ChatMessage(
+                text = "I can create compositions for: lion, crocodile, dog, car, tram, or flower. " +
+                    "Try describing one of those and I'll generate the tile layout!",
+                isUser = false
+            )
+            _uiState.value = _uiState.value.copy(
+                messages = _uiState.value.messages + aiMessage,
+                isLoading = false
+            )
         }
     }
 
@@ -122,9 +156,5 @@ class ChatViewModel : ViewModel() {
 
     fun getQuickSuggestions(): List<String> {
         return listOf("Lion", "Dog", "Car", "Flower", "Crocodile", "Tram")
-    }
-
-    private suspend fun delay(range: LongRange) {
-        delay(range.random())
     }
 }
