@@ -1,15 +1,37 @@
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# ============================================
+# Architect AI — App .gitignore
+# ============================================
+
+# Build outputs (root-level only)
+/build/
+*.class
+*.dex
+*.jar
+*.apk
+*.aab
+
+# Gradle
+.gradle/
 local.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Native builds
+.externalNativeBuild/
+.cxx/
+
+# Navigation
+.navigation/
+
+# Captures
+captures/

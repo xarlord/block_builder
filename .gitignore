@@ -1,19 +1,63 @@
-# Build outputs
+# ============================================
+# Architect AI — Root .gitignore
+# ============================================
+
+# === Gradle build output directories ===
+# Match build/ dirs that are direct children of module roots (contain classes/, tmp/, etc.)
+# We use specific patterns to avoid matching source package dirs named "build"
 app/build/
+app/core/*/build/
+app/feature/*/build/
+app/feature/build-feature/build/
+out/
+
+# === Gradle ===
 app/.gradle/
 gradle/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
 
-# Local configuration
-app/local.properties
+# === Kotlin / Java compiled ===
+*.class
+*.dex
+*.jar
+*.kt_*
+*.java_*
 
-# IDE
+# === Android ===
+local.properties
+*.apk
+*.aab
+*.ap_
+*.proguard_map/
+*.proguard_seed/
+.cxx/
+.externalNativeBuild/
+
+# === IDE ===
 .idea/
 *.iml
+*.iws
+*.ipr
 .vscode/
+*.swp
+*.swo
+*~
 
-# OS
+# === OS ===
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Logs
+# === Logs ===
 *.log
+
+# === Screenshots / test artifacts ===
+*.png
+*.jpg
+*.jpeg
+
+# === Misc ===
+captures/
+.navigation/

@@ -7,10 +7,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.example.architectai.screens.BuildPlaceholderScreen
-import com.example.architectai.screens.ChatPlaceholderScreen
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.architectai.core.domain.model.Composition
+import com.architectai.feature.build.BuildScreen
+import com.architectai.feature.build.BuildViewModel
+import com.architectai.feature.chat.ChatScreen
 import com.example.architectai.screens.GalleryPlaceholderScreen
 import com.example.architectai.screens.LibraryPlaceholderScreen
 
@@ -26,6 +30,17 @@ enum class TabDestination(
 @Composable
 fun MainNavigation() {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
+    var pendingComposition by rememberSaveable { mutableStateOf<Composition?>(null) }
+    val sharedBuildViewModel = viewModel<BuildViewModel>()
+
+    // Handle composition loading when tab switches to BUILD
+    androidx.compose.runtime.LaunchedEffect(selectedTabIndex) {
+        if (selectedTabIndex == TabDestination.BUILD.ordinal && pendingComposition != null) {
+            val compositionToLoad = pendingComposition!!
+            sharedBuildViewModel.loadCompositionDirect(compositionToLoad)
+            pendingComposition = null
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -34,23 +49,26 @@ fun MainNavigation() {
                     val isSelected = selectedTabIndex == index
                     NavigationBarItem(
                         selected = isSelected,
-                        onClick = {
-                            selectedTabIndex = index
-                        },
+                        onClick = { selectedTabIndex = index },
                         icon = {
                             Text(destination.label.first().toString())
                         },
-                        label = {
-                            Text(destination.label)
-                        }
+                        label = { Text(destination.label) }
                     )
                 }
             }
         }
     ) { _ ->
         when (TabDestination.entries[selectedTabIndex]) {
-            TabDestination.CHAT -> ChatPlaceholderScreen()
-            TabDestination.BUILD -> BuildPlaceholderScreen()
+            TabDestination.CHAT -> ChatScreen(
+                onNavigateToBuild = { composition ->
+                    pendingComposition = composition
+                    selectedTabIndex = TabDestination.BUILD.ordinal
+                }
+            )
+            TabDestination.BUILD -> BuildScreen(
+                viewModel = sharedBuildViewModel
+            )
             TabDestination.LIBRARY -> LibraryPlaceholderScreen()
             TabDestination.GALLERY -> GalleryPlaceholderScreen()
         }
