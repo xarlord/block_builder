@@ -41,4 +41,9 @@ dependencies {
 
     // Coroutines
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.okhttp)
+    testImplementation(libs.okhttp.mockwebserver)
+    implementation(libs.okhttp)
 }

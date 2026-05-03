@@ -10,7 +10,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.architectai.core.domain.model.Composition
 import com.architectai.feature.build.BuildScreen
 import com.architectai.feature.build.BuildViewModel
@@ -31,7 +31,7 @@ enum class TabDestination(
 fun MainNavigation() {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     var pendingComposition by rememberSaveable { mutableStateOf<Composition?>(null) }
-    val sharedBuildViewModel = viewModel<BuildViewModel>()
+    val sharedBuildViewModel: BuildViewModel = hiltViewModel()
 
     // Handle composition loading when tab switches to BUILD
     androidx.compose.runtime.LaunchedEffect(selectedTabIndex) {

@@ -36,7 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -58,7 +58,7 @@ import com.architectai.core.domain.model.Composition
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ChatScreen(
-    viewModel: ChatViewModel = viewModel(),
+    viewModel: ChatViewModel = hiltViewModel(),
     onNavigateToBuild: (Composition) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()

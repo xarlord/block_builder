@@ -30,4 +30,5 @@ dependencies {
     // Pure Kotlin module - no Android dependencies
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockk)
 }

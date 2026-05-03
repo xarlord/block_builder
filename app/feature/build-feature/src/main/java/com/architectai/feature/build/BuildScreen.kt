@@ -18,14 +18,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.architectai.core.designsystem.components.AppButton
 import com.architectai.core.domain.model.TileType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BuildScreen(
-    viewModel: BuildViewModel = viewModel()
+    viewModel: BuildViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val canvasState = uiState.canvasState
