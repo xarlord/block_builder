@@ -93,7 +93,7 @@ dependencies {
 
   // Feature modules
   implementation(project(":feature:chat"))
-  implementation(project(":feature:build"))
+  implementation(project(":feature:build-feature"))
   implementation(project(":feature:library"))
   implementation(project(":feature:gallery"))
 }
