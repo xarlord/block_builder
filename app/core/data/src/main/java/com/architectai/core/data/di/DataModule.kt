@@ -8,6 +8,8 @@ import com.architectai.core.data.llm.LLMClient
 import com.architectai.core.data.llm.OkHttpLLMClient
 import com.architectai.core.data.repository.CompositionRepository
 import com.architectai.core.data.repository.CompositionRepositoryImpl
+import com.architectai.core.data.template.TemplateLoader
+import com.architectai.core.domain.model.TemplateEngine
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -50,9 +52,26 @@ abstract class DataModule {
 
         @Provides
         @Singleton
-        fun provideOkHttpLLMClient(): OkHttpLLMClient {
-            // Default to emulator localhost; can be overridden via BuildConfig or a config provider
-            return OkHttpLLMClient(baseUrl = "http://10.0.2.2:8080")
+        fun provideTemplateEngine(): TemplateEngine {
+            return TemplateEngine()
+        }
+
+        @Provides
+        @Singleton
+        fun provideOkHttpLLMClient(templateEngine: TemplateEngine): OkHttpLLMClient {
+            val client = OkHttpLLMClient(baseUrl = "http://10.0.2.2:8080")
+            // Set the template catalog for LLM prompting
+            client.templateCatalog = templateEngine.getCatalogText()
+            return client
+        }
+
+        @Provides
+        @Singleton
+        fun provideTemplateLoader(
+            @ApplicationContext context: Context,
+            templateEngine: TemplateEngine
+        ): TemplateLoader {
+            return TemplateLoader(context, templateEngine)
         }
     }
 }

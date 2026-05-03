@@ -15,8 +15,9 @@ import com.architectai.core.domain.model.Composition
 import com.architectai.feature.build.BuildScreen
 import com.architectai.feature.build.BuildViewModel
 import com.architectai.feature.chat.ChatScreen
+import com.architectai.feature.chat.ChatViewModel
+import com.architectai.feature.library.LibraryScreen
 import com.example.architectai.screens.GalleryPlaceholderScreen
-import com.example.architectai.screens.LibraryPlaceholderScreen
 
 enum class TabDestination(
     val label: String
@@ -31,7 +32,9 @@ enum class TabDestination(
 fun MainNavigation() {
     var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     var pendingComposition by rememberSaveable { mutableStateOf<Composition?>(null) }
+    var pendingChatMessage by rememberSaveable { mutableStateOf<String?>(null) }
     val sharedBuildViewModel: BuildViewModel = hiltViewModel()
+    val chatViewModel: ChatViewModel = hiltViewModel()
 
     // Handle composition loading when tab switches to BUILD
     androidx.compose.runtime.LaunchedEffect(selectedTabIndex) {
@@ -39,6 +42,11 @@ fun MainNavigation() {
             val compositionToLoad = pendingComposition!!
             sharedBuildViewModel.loadCompositionDirect(compositionToLoad)
             pendingComposition = null
+        }
+        if (selectedTabIndex == TabDestination.CHAT.ordinal && pendingChatMessage != null) {
+            val message = pendingChatMessage!!
+            chatViewModel.sendMessage(message)
+            pendingChatMessage = null
         }
     }
 
@@ -61,6 +69,7 @@ fun MainNavigation() {
     ) { _ ->
         when (TabDestination.entries[selectedTabIndex]) {
             TabDestination.CHAT -> ChatScreen(
+                viewModel = chatViewModel,
                 onNavigateToBuild = { composition ->
                     pendingComposition = composition
                     selectedTabIndex = TabDestination.BUILD.ordinal
@@ -69,7 +78,12 @@ fun MainNavigation() {
             TabDestination.BUILD -> BuildScreen(
                 viewModel = sharedBuildViewModel
             )
-            TabDestination.LIBRARY -> LibraryPlaceholderScreen()
+            TabDestination.LIBRARY -> LibraryScreen(
+                onUseInChat = { templateName ->
+                    pendingChatMessage = "Build a $templateName"
+                    selectedTabIndex = TabDestination.CHAT.ordinal
+                }
+            )
             TabDestination.GALLERY -> GalleryPlaceholderScreen()
         }
     }
