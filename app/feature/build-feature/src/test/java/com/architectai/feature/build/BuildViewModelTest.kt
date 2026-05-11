@@ -4,6 +4,8 @@ import androidx.compose.ui.geometry.Offset
 import app.cash.turbine.test
 import com.architectai.core.data.repository.CompositionRepository
 import com.architectai.core.domain.model.MockCompositions
+import com.architectai.core.domain.model.Rotation
+import com.architectai.core.domain.model.TileColor
 import com.architectai.core.domain.model.TileType
 import com.architectai.feature.build.canvas.CanvasState
 import com.architectai.feature.build.canvas.DragState
@@ -316,5 +318,87 @@ class BuildViewModelTest {
     @Test
     fun gridUnitDp_is30() = runTest {
         assertEquals(30f, BuildViewModel.GRID_UNIT_DP, 0.01f)
+    }
+
+    @Test
+    fun updateTileRotation_updatesRotation() = runTest {
+        viewModel.addTile(TileType.SOLID_SQUARE, 0, 0)
+        advanceUntilIdle()
+
+        val tileId = viewModel.uiState.value.canvasState.tiles[0].id
+        viewModel.updateTileRotation(tileId, Rotation.R90)
+        advanceUntilIdle()
+
+        val tile = viewModel.uiState.value.canvasState.tiles[0]
+        assertEquals(Rotation.R90, tile.placement.rotation)
+    }
+
+    @Test
+    fun updateTileRotation_onlyAffectsTargetTile() = runTest {
+        viewModel.addTile(TileType.SOLID_SQUARE, 0, 0)
+        viewModel.addTile(TileType.EQUILATERAL_TRIANGLE, 3, 0)
+        advanceUntilIdle()
+
+        val tileId1 = viewModel.uiState.value.canvasState.tiles[0].id
+        viewModel.updateTileRotation(tileId1, Rotation.R180)
+        advanceUntilIdle()
+
+        val tiles = viewModel.uiState.value.canvasState.tiles
+        assertEquals(Rotation.R180, tiles[0].placement.rotation)
+        assertEquals(Rotation.R0, tiles[1].placement.rotation)
+    }
+
+    @Test
+    fun updateTileColor_updatesColor() = runTest {
+        viewModel.addTile(TileType.SOLID_SQUARE, 0, 0)
+        advanceUntilIdle()
+
+        val tileId = viewModel.uiState.value.canvasState.tiles[0].id
+        viewModel.updateTileColor(tileId, TileColor.BLUE)
+        advanceUntilIdle()
+
+        val tile = viewModel.uiState.value.canvasState.tiles[0]
+        assertEquals(TileColor.BLUE, tile.placement.color)
+    }
+
+    @Test
+    fun updateTileColor_onlyAffectsTargetTile() = runTest {
+        viewModel.addTile(TileType.SOLID_SQUARE, 0, 0)
+        viewModel.addTile(TileType.SOLID_SQUARE, 3, 0)
+        advanceUntilIdle()
+
+        val tileId1 = viewModel.uiState.value.canvasState.tiles[0].id
+        viewModel.updateTileColor(tileId1, TileColor.GREEN)
+        advanceUntilIdle()
+
+        val tiles = viewModel.uiState.value.canvasState.tiles
+        assertEquals(TileColor.GREEN, tiles[0].placement.color)
+        assertEquals(TileColor.RED, tiles[1].placement.color)
+    }
+
+    @Test
+    fun updateTileRotation_nonexistentTile_doesNothing() = runTest {
+        viewModel.addTile(TileType.SOLID_SQUARE, 0, 0)
+        advanceUntilIdle()
+
+        viewModel.updateTileRotation("nonexistent_id", Rotation.R270)
+        advanceUntilIdle()
+
+        val tiles = viewModel.uiState.value.canvasState.tiles
+        assertEquals(Rotation.R0, tiles[0].placement.rotation)
+        assertEquals(1, tiles.size)
+    }
+
+    @Test
+    fun updateTileColor_nonexistentTile_doesNothing() = runTest {
+        viewModel.addTile(TileType.SOLID_SQUARE, 0, 0)
+        advanceUntilIdle()
+
+        viewModel.updateTileColor("nonexistent_id", TileColor.YELLOW)
+        advanceUntilIdle()
+
+        val tiles = viewModel.uiState.value.canvasState.tiles
+        assertEquals(TileColor.RED, tiles[0].placement.color)
+        assertEquals(1, tiles.size)
     }
 }

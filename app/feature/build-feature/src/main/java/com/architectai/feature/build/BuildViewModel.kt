@@ -216,6 +216,34 @@ class BuildViewModel @Inject constructor(
         }
     }
 
+    fun updateTileRotation(tileId: String, rotation: Rotation) {
+        viewModelScope.launch {
+            val canvasState = _uiState.value.canvasState
+            val updatedTiles = canvasState.tiles.map { tile ->
+                if (tile.id == tileId) {
+                    tile.copy(placement = tile.placement.copy(rotation = rotation))
+                } else tile
+            }
+            _uiState.value = _uiState.value.copy(
+                canvasState = canvasState.copy(tiles = updatedTiles)
+            )
+        }
+    }
+
+    fun updateTileColor(tileId: String, color: TileColor) {
+        viewModelScope.launch {
+            val canvasState = _uiState.value.canvasState
+            val updatedTiles = canvasState.tiles.map { tile ->
+                if (tile.id == tileId) {
+                    tile.copy(placement = tile.placement.copy(color = color))
+                } else tile
+            }
+            _uiState.value = _uiState.value.copy(
+                canvasState = canvasState.copy(tiles = updatedTiles)
+            )
+        }
+    }
+
     fun clearSaveConfirmation() {
         _uiState.value = _uiState.value.copy(saveConfirmation = null)
     }

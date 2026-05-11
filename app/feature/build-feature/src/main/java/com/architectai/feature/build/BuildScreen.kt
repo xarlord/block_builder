@@ -1,6 +1,11 @@
 package com.architectai.feature.build
 
+import android.view.HapticFeedbackConstants
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,6 +13,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -31,12 +40,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.architectai.core.designsystem.color.Accent
 import com.architectai.core.designsystem.color.Header
 import com.architectai.core.designsystem.components.AppButton
+import com.architectai.core.domain.model.Rotation
+import com.architectai.core.domain.model.TileColor
 import com.architectai.core.domain.model.TileType
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,6 +60,10 @@ fun BuildScreen(
     val uiState by viewModel.uiState.collectAsState()
     val canvasState = uiState.canvasState
     val snackbarHostState = remember { SnackbarHostState() }
+    val view = LocalView.current
+
+    // Color for new tiles
+    var selectedColorForNewTiles by remember { mutableStateOf(TileColor.RED) }
 
     // Show save confirmation as a snackbar
     uiState.saveConfirmation?.let { message ->
@@ -146,8 +163,8 @@ fun BuildScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = "Total Tiles: ${canvasState.tiles.size}/200",
@@ -155,12 +172,45 @@ fun BuildScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
 
+                // Rotation toolbar - show when a tile is selected
+                val selectedTile = canvasState.selectedTile
+                if (selectedTile != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Rotation:",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        RotationButton("0°", Rotation.R0, selectedTile.placement.rotation, selectedTile.id, viewModel, view)
+                        RotationButton("90°", Rotation.R90, selectedTile.placement.rotation, selectedTile.id, viewModel, view)
+                        RotationButton("180°", Rotation.R180, selectedTile.placement.rotation, selectedTile.id, viewModel, view)
+                        RotationButton("270°", Rotation.R270, selectedTile.placement.rotation, selectedTile.id, viewModel, view)
+                    }
+                }
+
+                // Color picker row - show when tile is selected or always for new tiles
+                ColorPickerRow(
+                    selectedColor = selectedTile?.placement?.color ?: selectedColorForNewTiles,
+                    onColorSelected = { color ->
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        if (selectedTile != null) {
+                            viewModel.updateTileColor(selectedTile.id, color)
+                        } else {
+                            selectedColorForNewTiles = color
+                        }
+                    }
+                )
+
                 // Count by tile type
                 val tileTypeCounts = canvasState.tiles
                     .groupingBy { it.placement.tileType }
                     .eachCount()
 
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     tileTypeCounts.forEach { (tileType, count) ->
                         Text(
                             text = "• ${tileType.displayName}: $count",
@@ -175,7 +225,10 @@ fun BuildScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     AppButton(
-                        onClick = { viewModel.deleteSelectedTile() },
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            viewModel.deleteSelectedTile()
+                        },
                         text = "Delete",
                         enabled = canvasState.selectedTile != null,
                         modifier = Modifier.weight(1f)
@@ -183,6 +236,7 @@ fun BuildScreen(
 
                     AppButton(
                         onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                             val randomX = (0..20).random()
                             val randomY = (0..20).random()
                             viewModel.addTile(
@@ -198,7 +252,10 @@ fun BuildScreen(
 
                 // Save to Gallery button
                 Button(
-                    onClick = { showSaveDialog = true },
+                    onClick = {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        showSaveDialog = true
+                    },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Accent,
@@ -211,6 +268,86 @@ fun BuildScreen(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RotationButton(
+    label: String,
+    rotation: Rotation,
+    currentRotation: Rotation,
+    tileId: String,
+    viewModel: BuildViewModel,
+    view: android.view.View
+) {
+    val isSelected = currentRotation == rotation
+    val containerColor = if (isSelected) Accent else Color.Transparent
+    val contentColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onBackground
+
+    OutlinedButton(
+        onClick = {
+            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+            viewModel.updateTileRotation(tileId, rotation)
+        },
+        shape = RoundedCornerShape(8.dp),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = containerColor,
+            contentColor = contentColor
+        ),
+        modifier = Modifier.size(width = 56.dp, height = 36.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@Composable
+private fun ColorPickerRow(
+    selectedColor: TileColor,
+    onColorSelected: (TileColor) -> Unit
+) {
+    Column {
+        Text(
+            text = if (selectedColor != null) "Color: ${selectedColor.displayName}" else "Color",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Exclude TRANSLUCENT from the picker - it's implicitly for WINDOW_SQUARE
+            val pickableColors = TileColor.entries.filter { it != TileColor.TRANSLUCENT }
+            items(pickableColors) { tileColor ->
+                val color = try {
+                    Color(android.graphics.Color.parseColor(tileColor.hex))
+                } catch (_: IllegalArgumentException) {
+                    Color.Gray
+                }
+                val isSelected = tileColor == selectedColor
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(color)
+                        .then(
+                            if (isSelected) {
+                                Modifier.border(
+                                    width = 3.dp,
+                                    color = Accent,
+                                    shape = CircleShape
+                                )
+                            } else {
+                                Modifier.border(
+                                    width = 1.dp,
+                                    color = Color.Gray.copy(alpha = 0.4f),
+                                    shape = CircleShape
+                                )
+                            }
+                        )
+                        .clickable { onColorSelected(tileColor) }
+                )
             }
         }
     }
