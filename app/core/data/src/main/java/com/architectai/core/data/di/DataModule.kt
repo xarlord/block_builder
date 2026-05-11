@@ -1,10 +1,12 @@
 package com.architectai.core.data.di
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.room.Room
 import com.architectai.core.data.local.AppDatabase
 import com.architectai.core.data.local.CompositionDao
 import com.architectai.core.data.llm.LLMClient
+import com.architectai.core.data.llm.LLMConfig
 import com.architectai.core.data.llm.OkHttpLLMClient
 import com.architectai.core.data.repository.CompositionRepository
 import com.architectai.core.data.repository.CompositionRepositoryImpl
@@ -35,6 +37,20 @@ abstract class DataModule {
     ): LLMClient
 
     companion object {
+        private const val PREFS_NAME = "architect_ai_prefs"
+
+        @Provides
+        @Singleton
+        fun provideSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
+            return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        }
+
+        @Provides
+        @Singleton
+        fun provideLLMConfig(prefs: SharedPreferences): LLMConfig {
+            return LLMConfig(prefs)
+        }
+
         @Provides
         @Singleton
         fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
@@ -58,8 +74,11 @@ abstract class DataModule {
 
         @Provides
         @Singleton
-        fun provideOkHttpLLMClient(templateEngine: TemplateEngine): OkHttpLLMClient {
-            val client = OkHttpLLMClient(baseUrl = "http://10.0.2.2:8080")
+        fun provideOkHttpLLMClient(
+            config: LLMConfig,
+            templateEngine: TemplateEngine
+        ): OkHttpLLMClient {
+            val client = OkHttpLLMClient(config = config)
             // Set the template catalog for LLM prompting
             client.templateCatalog = templateEngine.getCatalogText()
             return client
