@@ -422,10 +422,10 @@ class TemplateEngine {
             }
         }
 
-        // Check overlaps using bounding box intersection
+        // Check overlaps using polygon intersection (SAT for triangles)
         for (i in tiles.indices) {
             for (j in i + 1 until tiles.size) {
-                if (boundingBoxesOverlap(tiles[i], tiles[j])) {
+                if (tilesOverlap(tiles[i], tiles[j])) {
                     errors.add("Tiles $i and $j overlap at (${tiles[i].x},${tiles[i].y}) and (${tiles[j].x},${tiles[j].y})")
                 }
             }
@@ -450,6 +450,113 @@ class TemplateEngine {
         val bBottom = b.y + b.tileType.heightUnits
 
         return !(aRight <= bLeft || bRight <= aLeft || aBottom <= bTop || bBottom <= aTop)
+    }
+
+    /**
+     * Check if two tiles actually overlap using polygon intersection.
+     * Squares use bounding box (already exact). Triangles use SAT polygon overlap.
+     */
+    fun tilesOverlap(a: TilePlacement, b: TilePlacement): Boolean {
+        // Fast path: if bounding boxes don't overlap, tiles definitely don't
+        if (!boundingBoxesOverlap(a, b)) return false
+
+        // Both squares → bounding box is exact for axis-aligned squares
+        if (a.tileType == TileType.SOLID_SQUARE || a.tileType == TileType.WINDOW_SQUARE) {
+            if (b.tileType == TileType.SOLID_SQUARE || b.tileType == TileType.WINDOW_SQUARE) {
+                return true // bounding boxes overlap and squares fill their entire box
+            }
+        }
+
+        // At least one triangle → use polygon overlap
+        return polygonsOverlap(getPolygon(a), getPolygon(b))
+    }
+
+    /**
+     * Get the polygon vertices for a tile placement in world coordinates.
+     * All tiles are 3x3 bounding boxes. Triangles fill only part of that box.
+     */
+    private fun getPolygon(tile: TilePlacement): List<Pair<Float, Float>> {
+        val x = tile.x.toFloat()
+        val y = tile.y.toFloat()
+        val w = 3f  // widthUnits
+        val h = 3f  // heightUnits
+
+        // Define base polygon (R0) relative to top-left corner
+        val baseVertices: List<Pair<Float, Float>> = when (tile.tileType) {
+            TileType.SOLID_SQUARE, TileType.WINDOW_SQUARE -> {
+                listOf(0f to 0f, w to 0f, w to h, 0f to h)
+            }
+            TileType.RIGHT_TRIANGLE -> {
+                // R0: fills lower-right triangle (0,h), (w,h), (w,0)
+                listOf(0f to h, w to h, w to 0f)
+            }
+            TileType.EQUILATERAL_TRIANGLE -> {
+                // R0: triangle pointing up with base at bottom
+                listOf(0f to h, w / 2f to 0f, w to h)
+            }
+            TileType.ISOSCELES_TRIANGLE -> {
+                // R0: tall triangle pointing up
+                listOf(0f to h, w / 2f to 0f, w to h)
+            }
+        }
+
+        // Rotate vertices around tile center
+        val cx = w / 2f
+        val cy = h / 2f
+        val radians = Math.toRadians(tile.rotation.degrees.toDouble())
+        val cos = kotlin.math.cos(radians).toFloat()
+        val sin = kotlin.math.sin(radians).toFloat()
+
+        val rotated = baseVertices.map { (vx, vy) ->
+            val dx = vx - cx
+            val dy = vy - cy
+            (cx + dx * cos - dy * sin) to (cy + dx * sin + dy * cos)
+        }
+
+        // Translate to world position
+        return rotated.map { (vx, vy) -> (vx + x) to (vy + y) }
+    }
+
+    /**
+     * Check if two convex polygons overlap using Separating Axis Theorem.
+     */
+    private fun polygonsOverlap(poly1: List<Pair<Float, Float>>, poly2: List<Pair<Float, Float>>): Boolean {
+        val axes = getEdgeNormals(poly1) + getEdgeNormals(poly2)
+
+        for (axis in axes) {
+            val (min1, max1) = projectOntoAxis(poly1, axis)
+            val (min2, max2) = projectOntoAxis(poly2, axis)
+
+            // Check for gap
+            if (max1 <= min2 || max2 <= min1) {
+                return false // Separating axis found — no overlap
+            }
+        }
+
+        return true // No separating axis found — polygons overlap
+    }
+
+    /**
+     * Get the edge normals (perpendicular vectors) for a polygon.
+     */
+    private fun getEdgeNormals(polygon: List<Pair<Float, Float>>): List<Pair<Float, Float>> {
+        return polygon.indices.map { i ->
+            val j = (i + 1) % polygon.size
+            val dx = polygon[j].first - polygon[i].first
+            val dy = polygon[j].second - polygon[i].second
+            // Normal is perpendicular: (-dy, dx)
+            -dy to dx
+        }
+    }
+
+    /**
+     * Project a polygon onto an axis and return (min, max) range.
+     */
+    private fun projectOntoAxis(polygon: List<Pair<Float, Float>>, axis: Pair<Float, Float>): Pair<Float, Float> {
+        val projections = polygon.map { (x, y) ->
+            x * axis.first + y * axis.second
+        }
+        return projections.min() to projections.max()
     }
 
     // ── Parsing helpers ───────────────────────────────────────────────────────
