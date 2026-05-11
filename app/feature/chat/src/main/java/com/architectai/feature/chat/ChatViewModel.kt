@@ -3,6 +3,7 @@ package com.architectai.feature.chat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.architectai.core.data.llm.LLMClient
+import com.architectai.core.data.llm.LLMConfig
 import com.architectai.core.data.llm.LLMResult
 import com.architectai.core.data.repository.CompositionRepository
 import com.architectai.core.data.template.TemplateLoader
@@ -33,7 +34,8 @@ data class ChatUiState(
     val messages: List<ChatMessage> = emptyList(),
     val generatedComposition: Composition? = null,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isLlmConfigured: Boolean = false
 )
 
 @HiltViewModel
@@ -41,7 +43,8 @@ class ChatViewModel @Inject constructor(
     private val llmClient: LLMClient,
     private val compositionRepository: CompositionRepository,
     private val templateEngine: TemplateEngine,
-    private val templateLoader: TemplateLoader
+    private val templateLoader: TemplateLoader,
+    private val llmConfig: LLMConfig
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -51,6 +54,7 @@ class ChatViewModel @Inject constructor(
 
     init {
         loadTemplates()
+        updateConfigState()
     }
 
     private fun loadTemplates() {
@@ -65,6 +69,26 @@ class ChatViewModel @Inject constructor(
         } catch (_: Exception) {
             templatesLoaded = false
         }
+    }
+
+    /** Check if the LLM is configured. */
+    fun isLlmConfigured(): Boolean = llmConfig.isConfigured
+
+    /** Get the current config values for the settings UI. */
+    fun getLlmConfig(): Triple<String, String, String> {
+        return Triple(llmConfig.baseUrl, llmConfig.apiKey, llmConfig.modelName)
+    }
+
+    /** Update LLM configuration. */
+    fun updateLlmConfig(baseUrl: String, apiKey: String, modelName: String) {
+        llmConfig.baseUrl = baseUrl
+        llmConfig.apiKey = apiKey
+        llmConfig.modelName = modelName
+        updateConfigState()
+    }
+
+    private fun updateConfigState() {
+        _uiState.value = _uiState.value.copy(isLlmConfigured = llmConfig.isConfigured)
     }
 
     /**

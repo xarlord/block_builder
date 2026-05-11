@@ -1,7 +1,9 @@
 package com.architectai.feature.chat
 
+import android.content.SharedPreferences
 import app.cash.turbine.test
 import com.architectai.core.data.llm.LLMClient
+import com.architectai.core.data.llm.LLMConfig
 import com.architectai.core.data.llm.LLMResult
 import com.architectai.core.data.repository.CompositionRepository
 import com.architectai.core.data.template.TemplateLoader
@@ -40,6 +42,7 @@ class ChatViewModelTest {
     private lateinit var compositionRepository: CompositionRepository
     private lateinit var templateEngine: TemplateEngine
     private lateinit var templateLoader: TemplateLoader
+    private lateinit var llmConfig: LLMConfig
     private lateinit var viewModel: ChatViewModel
 
     /** Minimal valid template JSONs for testing keyword matching */
@@ -63,10 +66,28 @@ class ChatViewModelTest {
         templateLoader = mockk()
         every { templateLoader.loadAllTemplates() } returns 0
 
+        // Create mock LLM config backed by a mutable map for realistic get/set behavior
+        val prefsMap = mutableMapOf<String, String>(
+            "llm_base_url" to "",
+            "llm_api_key" to "",
+            "llm_model_name" to "glm-4-flash"
+        )
+        val prefsEditor = mockk<SharedPreferences.Editor>(relaxed = true)
+        every { prefsEditor.putString(any(), any()) } answers {
+            prefsMap[firstArg()] = secondArg()
+            prefsEditor
+        }
+        val prefs = mockk<SharedPreferences>(relaxed = true)
+        every { prefs.getString("llm_base_url", "") } answers { prefsMap["llm_base_url"] ?: "" }
+        every { prefs.getString("llm_api_key", "") } answers { prefsMap["llm_api_key"] ?: "" }
+        every { prefs.getString("llm_model_name", "glm-4-flash") } answers { prefsMap["llm_model_name"] ?: "glm-4-flash" }
+        every { prefs.edit() } returns prefsEditor
+        llmConfig = LLMConfig(prefs)
+
         // Load test templates into engine directly
         testTemplates.forEach { templateEngine.loadTemplate(it) }
 
-        viewModel = ChatViewModel(llmClient, compositionRepository, templateEngine, templateLoader)
+        viewModel = ChatViewModel(llmClient, compositionRepository, templateEngine, templateLoader, llmConfig)
     }
 
     @After
@@ -82,6 +103,14 @@ class ChatViewModelTest {
             assertNull(state.generatedComposition)
             assertFalse(state.isLoading)
             assertNull(state.error)
+        }
+    }
+
+    @Test
+    fun initialState_showsNotConfigured() = runTest {
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertFalse("Should show not configured when API key is empty", state.isLlmConfigured)
         }
     }
 
@@ -279,7 +308,7 @@ class ChatViewModelTest {
         for ((keyword, expectedName) in testCases) {
             val engine = TemplateEngine()
             testTemplates.forEach { engine.loadTemplate(it) }
-            val vm = ChatViewModel(llmClient, compositionRepository, engine, templateLoader)
+            val vm = ChatViewModel(llmClient, compositionRepository, engine, templateLoader, llmConfig)
             vm.sendMessage(keyword)
             advanceUntilIdle()
 
@@ -311,5 +340,32 @@ class ChatViewModelTest {
         assertNotNull(state.generatedComposition)
         // Should have tiles from the template
         assertTrue(state.generatedComposition!!.tiles.isNotEmpty())
+    }
+
+    @Test
+    fun updateLlmConfig_updatesConfiguredState() = runTest {
+        // Initially not configured
+        assertFalse(viewModel.uiState.value.isLlmConfigured)
+
+        // Update with valid config
+        viewModel.updateLlmConfig("https://api.example.com", "test-key", "test-model")
+
+        // Should now show as configured
+        assertTrue(viewModel.uiState.value.isLlmConfigured)
+    }
+
+    @Test
+    fun getLlmConfig_returnsCurrentValues() {
+        val (baseUrl, apiKey, model) = viewModel.getLlmConfig()
+        assertEquals("", baseUrl)
+        assertEquals("", apiKey)
+        assertEquals("glm-4-flash", model)
+    }
+
+    @Test
+    fun isLlmConfigured_reflectsConfigState() {
+        assertFalse(viewModel.isLlmConfigured())
+        viewModel.updateLlmConfig("https://api.example.com", "key", "model")
+        assertTrue(viewModel.isLlmConfigured())
     }
 }
