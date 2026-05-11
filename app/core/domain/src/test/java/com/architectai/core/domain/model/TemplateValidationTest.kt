@@ -191,4 +191,90 @@ class TemplateValidationTest {
         assertTrue("Should have 'vehicles' category", categories.contains("vehicles"))
         assertTrue("Should have 'nature' category", categories.contains("nature") || categories.contains("buildings"))
     }
+
+    @Test
+    fun complementaryRightTrianglesDoNotOverlap() {
+        // R0 fills lower-right triangle, R180 fills upper-left triangle
+        // Together they fill a square but their filled regions don't overlap
+        val tiles = listOf(
+            TilePlacement(TileType.RIGHT_TRIANGLE, 0, 0, Rotation.R0, TileColor.RED),
+            TilePlacement(TileType.RIGHT_TRIANGLE, 0, 0, Rotation.R180, TileColor.BLUE)
+        )
+        val errors = engine.validateTiles(tiles)
+        assertTrue(
+            "Complementary right triangles should NOT be flagged as overlapping. Errors: $errors",
+            errors.all { !it.contains("overlap", ignoreCase = true) }
+        )
+    }
+
+    @Test
+    fun identicalTrianglesOverlap() {
+        val tiles = listOf(
+            TilePlacement(TileType.RIGHT_TRIANGLE, 0, 0, Rotation.R0, TileColor.RED),
+            TilePlacement(TileType.RIGHT_TRIANGLE, 0, 0, Rotation.R0, TileColor.BLUE)
+        )
+        val errors = engine.validateTiles(tiles)
+        assertTrue(
+            "Identical triangles at same position should be flagged as overlapping",
+            errors.any { it.contains("overlap", ignoreCase = true) }
+        )
+    }
+
+    @Test
+    fun nonOverlappingTrianglesPassValidation() {
+        // Two triangles far apart should pass
+        val tiles = listOf(
+            TilePlacement(TileType.RIGHT_TRIANGLE, 0, 0, Rotation.R0, TileColor.RED),
+            TilePlacement(TileType.RIGHT_TRIANGLE, 6, 0, Rotation.R0, TileColor.BLUE)
+        )
+        val errors = engine.validateTiles(tiles)
+        assertTrue(
+            "Non-overlapping triangles should pass validation. Errors: $errors",
+            errors.isEmpty()
+        )
+    }
+
+    @Test
+    fun squareAndOverlappingTriangleDetected() {
+        // Triangle placed so its polygon overlaps with square
+        val tiles = listOf(
+            TilePlacement(TileType.SOLID_SQUARE, 3, 3, Rotation.R0, TileColor.RED),
+            TilePlacement(TileType.RIGHT_TRIANGLE, 3, 3, Rotation.R0, TileColor.BLUE)
+        )
+        val errors = engine.validateTiles(tiles)
+        assertTrue(
+            "Triangle overlapping square should be detected",
+            errors.any { it.contains("overlap", ignoreCase = true) }
+        )
+    }
+
+    @Test
+    fun adjacentSquaresStillDetectedAsOverlap() {
+        // Adjacent squares that share a boundary (bounding boxes touching)
+        val tiles = listOf(
+            TilePlacement(TileType.SOLID_SQUARE, 0, 0, Rotation.R0, TileColor.RED),
+            TilePlacement(TileType.SOLID_SQUARE, 3, 0, Rotation.R0, TileColor.BLUE)
+        )
+        val errors = engine.validateTiles(tiles)
+        assertTrue(
+            "Non-overlapping adjacent squares should pass. Errors: $errors",
+            errors.isEmpty()
+        )
+    }
+
+    @Test
+    fun equilateralTrianglesDifferentRotationsCanCoexist() {
+        // Two equilateral triangles at same position, one pointing up (R0) one pointing down (R180)
+        // This is the classic Star of David pattern — they DO overlap in the center
+        // So they should be detected as overlapping
+        val tiles = listOf(
+            TilePlacement(TileType.EQUILATERAL_TRIANGLE, 0, 0, Rotation.R0, TileColor.RED),
+            TilePlacement(TileType.EQUILATERAL_TRIANGLE, 0, 0, Rotation.R180, TileColor.BLUE)
+        )
+        val errors = engine.validateTiles(tiles)
+        assertTrue(
+            "Overlapping equilateral triangles should be detected. Errors: $errors",
+            errors.any { it.contains("overlap", ignoreCase = true) }
+        )
+    }
 }
