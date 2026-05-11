@@ -8,17 +8,34 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.architectai.core.designsystem.color.Accent
+import com.architectai.core.designsystem.color.Header
 import com.architectai.core.designsystem.components.AppButton
 import com.architectai.core.domain.model.TileType
 
@@ -29,18 +46,88 @@ fun BuildScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val canvasState = uiState.canvasState
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Show save confirmation as a snackbar
+    uiState.saveConfirmation?.let { message ->
+        LaunchedEffect(message) {
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearSaveConfirmation()
+        }
+    }
+
+    // Save dialog state
+    var showSaveDialog by remember { mutableStateOf(false) }
+    var saveName by remember { mutableStateOf("") }
+
+    if (showSaveDialog) {
+        AlertDialog(
+            onDismissRequest = { showSaveDialog = false },
+            title = { Text("Save to Gallery") },
+            text = {
+                Column {
+                    Text(
+                        "Save your current composition with ${canvasState.tiles.size} tiles.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    TextField(
+                        value = saveName,
+                        onValueChange = { saveName = it },
+                        label = { Text("Composition name") },
+                        placeholder = { Text("My Composition") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.saveComposition(saveName)
+                        saveName = ""
+                        showSaveDialog = false
+                    },
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Accent,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        showSaveDialog = false
+                        saveName = ""
+                    },
+                    shape = RoundedCornerShape(50)
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Build Canvas") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Header,
+                    titleContentColor = Color.White
+                ),
                 actions = {
                     androidx.compose.material3.TextButton(onClick = { viewModel.clearCanvas() }) {
-                        Text("Clear", color = MaterialTheme.colorScheme.onPrimary)
+                        Text("Clear", color = Color.White)
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -107,6 +194,20 @@ fun BuildScreen(
                         text = "Add Tile",
                         modifier = Modifier.weight(1f)
                     )
+                }
+
+                // Save to Gallery button
+                Button(
+                    onClick = { showSaveDialog = true },
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Accent,
+                        contentColor = Color.White
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = canvasState.tiles.isNotEmpty()
+                ) {
+                    Text("Save to Gallery", style = MaterialTheme.typography.labelLarge)
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))

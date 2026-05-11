@@ -57,6 +57,11 @@ class CompositionRepositoryImpl @Inject constructor(
     override suspend fun deleteComposition(id: String) {
         compositionDao.deleteCompositionById(id)
     }
+
+    override suspend fun renameComposition(id: String, newName: String) {
+        val entity = compositionDao.getCompositionById(id) ?: return
+        compositionDao.updateComposition(entity.copy(name = newName, updatedAt = System.currentTimeMillis()))
+    }
 }
 
 // ── DTO for tile serialization ───────────────────────────────────────────────

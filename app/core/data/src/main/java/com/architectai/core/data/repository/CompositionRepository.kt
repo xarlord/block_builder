@@ -11,4 +11,5 @@ interface CompositionRepository {
     suspend fun getCompositionById(id: String): Composition?
     suspend fun saveComposition(composition: Composition)
     suspend fun deleteComposition(id: String)
+    suspend fun renameComposition(id: String, newName: String)
 }
