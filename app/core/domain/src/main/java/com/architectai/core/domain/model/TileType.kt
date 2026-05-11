@@ -54,6 +54,7 @@ enum class TileColor(
     GREEN("#4CAF50", "Green"),
     BLUE("#2196F3", "Blue"),
     PURPLE("#9C27B0", "Purple"),
+    PINK("#E91E63", "Pink"),
     BROWN("#8D6E63", "Brown"),
     BLACK("#000000", "Black"),
     WHITE("#FFFFFF", "White"),

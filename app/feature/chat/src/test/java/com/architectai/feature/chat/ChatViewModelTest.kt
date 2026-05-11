@@ -4,13 +4,16 @@ import app.cash.turbine.test
 import com.architectai.core.data.llm.LLMClient
 import com.architectai.core.data.llm.LLMResult
 import com.architectai.core.data.repository.CompositionRepository
+import com.architectai.core.data.template.TemplateLoader
 import com.architectai.core.domain.model.Composition
 import com.architectai.core.domain.model.Rotation
+import com.architectai.core.domain.model.TemplateEngine
 import com.architectai.core.domain.model.TileColor
 import com.architectai.core.domain.model.TilePlacement
 import com.architectai.core.domain.model.TileType
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,14 +38,35 @@ class ChatViewModelTest {
 
     private lateinit var llmClient: LLMClient
     private lateinit var compositionRepository: CompositionRepository
+    private lateinit var templateEngine: TemplateEngine
+    private lateinit var templateLoader: TemplateLoader
     private lateinit var viewModel: ChatViewModel
+
+    /** Minimal valid template JSONs for testing keyword matching */
+    private val testTemplates = listOf(
+        """{"id":"lion","name":"Lion","category":"animals","description":"A lion","tags":["lion","cat","wildlife","mane"],"tiles":[{"tileType":"SOLID_SQUARE","x":6,"y":3,"rotation":"R0","color":"ORANGE"}]}""",
+        """{"id":"dog","name":"Dog","category":"animals","description":"A dog","tags":["dog","puppy","pet"],"tiles":[{"tileType":"SOLID_SQUARE","x":6,"y":3,"rotation":"R0","color":"BROWN"}]}""",
+        """{"id":"car","name":"Car","category":"vehicles","description":"A car","tags":["car","automobile","vehicle"],"tiles":[{"tileType":"SOLID_SQUARE","x":6,"y":9,"rotation":"R0","color":"RED"}]}""",
+        """{"id":"flower","name":"Flower","category":"nature","description":"A flower","tags":["flower","rose","plant"],"tiles":[{"tileType":"EQUILATERAL_TRIANGLE","x":9,"y":0,"rotation":"R180","color":"RED"}]}""",
+        """{"id":"crocodile","name":"Crocodile","category":"animals","description":"A crocodile","tags":["crocodile","alligator","reptile"],"tiles":[{"tileType":"SOLID_SQUARE","x":18,"y":3,"rotation":"R0","color":"GREEN"}]}""",
+        """{"id":"tram","name":"Tram","category":"vehicles","description":"A tram","tags":["tram","train","transit"],"tiles":[{"tileType":"RIGHT_TRIANGLE","x":6,"y":0,"rotation":"R90","color":"BLACK"}]}""",
+        """{"id":"cat","name":"Cat","category":"animals","description":"A cat","tags":["cat","kitten","feline"],"tiles":[{"tileType":"ISOSCELES_TRIANGLE","x":9,"y":0,"rotation":"R0","color":"ORANGE"}]}""",
+        """{"id":"house","name":"House","category":"buildings","description":"A house","tags":["house","home","building"],"tiles":[{"tileType":"ISOSCELES_TRIANGLE","x":9,"y":0,"rotation":"R0","color":"RED"}]}"""
+    )
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         llmClient = mockk()
         compositionRepository = mockk(relaxed = true)
-        viewModel = ChatViewModel(llmClient, compositionRepository)
+        templateEngine = TemplateEngine()
+        templateLoader = mockk()
+        every { templateLoader.loadAllTemplates() } returns 0
+
+        // Load test templates into engine directly
+        testTemplates.forEach { templateEngine.loadTemplate(it) }
+
+        viewModel = ChatViewModel(llmClient, compositionRepository, templateEngine, templateLoader)
     }
 
     @After
@@ -163,14 +187,14 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun sendMessage_llmError_fallsBackToKeywordMatching() = runTest {
+    fun sendMessage_llmError_fallsBackToTemplateKeywordMatching() = runTest {
         coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
 
         viewModel.sendMessage("I want a lion")
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
-        assertNotNull("Should fall back to keyword matching for 'lion'", state.generatedComposition)
+        assertNotNull("Should fall back to template keyword matching for 'lion'", state.generatedComposition)
         assertEquals("Lion", state.generatedComposition!!.name)
         assertFalse(state.isLoading)
     }
@@ -179,14 +203,16 @@ class ChatViewModelTest {
     fun sendMessage_llmError_noKeywordMatch_showsSuggestion() = runTest {
         coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
 
-        viewModel.sendMessage("I want a spaceship")
+        viewModel.sendMessage("I want a zebra")
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
         assertNull(state.generatedComposition)
         val lastMessage = state.messages.last()
-        assertTrue("Should contain suggestion keywords",
-            lastMessage.text.contains("lion") || lastMessage.text.contains("crocodile"))
+        // Should suggest available template names
+        assertTrue("Should suggest available templates: ${lastMessage.text}",
+            lastMessage.text.contains("Lion") || lastMessage.text.contains("Dog")
+                || lastMessage.text.contains("Car") || lastMessage.text.contains("Flower"))
         assertFalse(state.isLoading)
     }
 
@@ -203,9 +229,12 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun getQuickSuggestions_returnsExpectedList() {
+    fun getQuickSuggestions_returnsTemplateNames() {
         val suggestions = viewModel.getQuickSuggestions()
-        assertEquals(listOf("Lion", "Dog", "Car", "Flower", "Crocodile", "Tram"), suggestions)
+        // Should return template names from loaded templates
+        assertTrue("Should have suggestions", suggestions.isNotEmpty())
+        assertTrue("Should contain Lion", suggestions.contains("Lion"))
+        assertTrue("Should contain Dog", suggestions.contains("Dog"))
     }
 
     @Test
@@ -226,13 +255,12 @@ class ChatViewModelTest {
     }
 
     @Test
-    fun sendMessage_keywordMapCoversAllMocks() = runTest {
+    fun sendMessage_keywordMapCoversTemplates() = runTest {
         coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
 
-        // Test all keyword paths
+        // Test keyword paths via template engine
         val testCases = mapOf(
             "lion" to "Lion",
-            "cat" to "Lion",
             "crocodile" to "Crocodile",
             "alligator" to "Crocodile",
             "dog" to "Dog",
@@ -243,16 +271,45 @@ class ChatViewModelTest {
             "train" to "Tram",
             "flower" to "Flower",
             "rose" to "Flower",
-            "plant" to "Flower"
+            "plant" to "Flower",
+            "cat" to "Cat",
+            "house" to "House"
         )
 
         for ((keyword, expectedName) in testCases) {
-            val vm = ChatViewModel(llmClient, compositionRepository)
+            val engine = TemplateEngine()
+            testTemplates.forEach { engine.loadTemplate(it) }
+            val vm = ChatViewModel(llmClient, compositionRepository, engine, templateLoader)
             vm.sendMessage(keyword)
             advanceUntilIdle()
 
             assertNotNull("Keyword '$keyword' should match composition", vm.uiState.value.generatedComposition)
             assertEquals("Keyword '$keyword' should map to $expectedName", expectedName, vm.uiState.value.generatedComposition!!.name)
         }
+    }
+
+    @Test
+    fun sendMessage_templateKeywordMatchingUsesTemplateEngine() = runTest {
+        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
+
+        viewModel.sendMessage("cat")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNotNull("'cat' should match the Cat template", state.generatedComposition)
+        assertEquals("Cat", state.generatedComposition!!.name)
+    }
+
+    @Test
+    fun sendMessage_fallbackReturnsTemplateComposition() = runTest {
+        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
+
+        viewModel.sendMessage("lion")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.generatedComposition)
+        // Should have tiles from the template
+        assertTrue(state.generatedComposition!!.tiles.isNotEmpty())
     }
 }
