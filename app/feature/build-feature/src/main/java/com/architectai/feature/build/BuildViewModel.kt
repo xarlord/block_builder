@@ -24,7 +24,8 @@ data class BuildUiState(
     val canvasState: CanvasState = CanvasState(),
     val dragState: DragState = DragState(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val saveConfirmation: String? = null
 )
 
 @HiltViewModel
@@ -187,6 +188,36 @@ class BuildViewModel @Inject constructor(
                 canvasState = CanvasState(tiles = canvasTiles)
             )
         }
+    }
+
+    fun saveComposition(name: String) {
+        viewModelScope.launch {
+            val canvasState = _uiState.value.canvasState
+            if (canvasState.tiles.isEmpty()) {
+                _uiState.value = _uiState.value.copy(
+                    error = "Cannot save an empty composition"
+                )
+                return@launch
+            }
+            val now = System.currentTimeMillis()
+            val tilePlacements = canvasState.tiles.map { it.placement }
+            val composition = Composition(
+                id = "comp_${now}",
+                name = name.ifBlank { "Untitled ${java.text.SimpleDateFormat("MMdd_HHmm", java.util.Locale.getDefault()).format(java.util.Date(now))}" },
+                tiles = tilePlacements,
+                createdAt = now,
+                updatedAt = now,
+                source = Composition.Source.MANUAL
+            )
+            compositionRepository.saveComposition(composition)
+            _uiState.value = _uiState.value.copy(
+                saveConfirmation = "Saved \"${composition.name}\" to Gallery"
+            )
+        }
+    }
+
+    fun clearSaveConfirmation() {
+        _uiState.value = _uiState.value.copy(saveConfirmation = null)
     }
 
     private fun Float.roundToInt(): Int = kotlin.math.round(this).toInt()

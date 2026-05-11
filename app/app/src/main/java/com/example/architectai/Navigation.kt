@@ -16,8 +16,8 @@ import com.architectai.feature.build.BuildScreen
 import com.architectai.feature.build.BuildViewModel
 import com.architectai.feature.chat.ChatScreen
 import com.architectai.feature.chat.ChatViewModel
+import com.architectai.feature.gallery.GalleryScreen
 import com.architectai.feature.library.LibraryScreen
-import com.example.architectai.screens.GalleryPlaceholderScreen
 
 enum class TabDestination(
     val label: String
@@ -84,7 +84,12 @@ fun MainNavigation() {
                     selectedTabIndex = TabDestination.CHAT.ordinal
                 }
             )
-            TabDestination.GALLERY -> GalleryPlaceholderScreen()
+            TabDestination.GALLERY -> GalleryScreen(
+                onLoadToBuild = { composition ->
+                    pendingComposition = composition
+                    selectedTabIndex = TabDestination.BUILD.ordinal
+                }
+            )
         }
     }
 }
