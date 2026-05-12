@@ -67,7 +67,8 @@ import com.architectai.core.domain.model.Composition
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
-    onNavigateToBuild: (Composition) -> Unit = {}
+    onNavigateToBuild: (Composition) -> Unit = {},
+    onShowHelp: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var inputText by rememberSaveable(stateSaver = TextFieldValue.Saver) {
@@ -86,6 +87,13 @@ fun ChatScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = onShowHelp) {
+                        Icon(
+                            painter = painterResource(android.R.drawable.ic_menu_info_details),
+                            contentDescription = "Help",
+                            tint = Color.White
+                        )
+                    }
                     IconButton(onClick = { showSettingsDialog = true }) {
                         Icon(
                             painter = painterResource(android.R.drawable.ic_menu_preferences),
