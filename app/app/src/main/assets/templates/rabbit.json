@@ -1,0 +1,137 @@
+{
+  "id": "rabbit",
+  "name": "Rabbit",
+  "category": "animals",
+  "description": "A cute bunny rabbit with long ears",
+  "tags": [
+    "rabbit",
+    "bunny",
+    "ears",
+    "cute",
+    "animal",
+    "pet",
+    "easter"
+  ],
+  "thumbnailDescription": "White and pink rabbit",
+  "tiles": [
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 3,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 3,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 6,
+      "y": 0,
+      "rotation": "R180",
+      "color": "PINK"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 12,
+      "y": 0,
+      "rotation": "R180",
+      "color": "PINK"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 6,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 6,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 6,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 9,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "WINDOW_SQUARE",
+      "x": 9,
+      "y": 9,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 9,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 12,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 12,
+      "rotation": "R0",
+      "color": "PINK"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 12,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 6,
+      "y": 15,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 12,
+      "y": 15,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 3,
+      "y": 9,
+      "rotation": "R90",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 15,
+      "y": 9,
+      "rotation": "R180",
+      "color": "WHITE"
+    }
+  ]
+}

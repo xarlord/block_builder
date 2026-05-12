@@ -1,0 +1,123 @@
+{
+  "id": "airplane",
+  "name": "Airplane",
+  "category": "vehicles",
+  "description": "A jet airplane flying through the sky",
+  "tags": [
+    "airplane",
+    "plane",
+    "jet",
+    "fly",
+    "aircraft",
+    "travel",
+    "sky"
+  ],
+  "thumbnailDescription": "White and blue airplane",
+  "tiles": [
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 18,
+      "y": 9,
+      "rotation": "R270",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 15,
+      "y": 9,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 15,
+      "y": 12,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 9,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 12,
+      "rotation": "R0",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 9,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 12,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 9,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 12,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 3,
+      "y": 9,
+      "rotation": "R270",
+      "color": "RED"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 3,
+      "y": 12,
+      "rotation": "R270",
+      "color": "RED"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 12,
+      "y": 3,
+      "rotation": "R180",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 12,
+      "y": 15,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 9,
+      "y": 3,
+      "rotation": "R270",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 9,
+      "y": 15,
+      "rotation": "R90",
+      "color": "WHITE"
+    }
+  ]
+}

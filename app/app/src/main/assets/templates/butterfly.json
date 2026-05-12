@@ -1,0 +1,157 @@
+{
+  "id": "butterfly",
+  "name": "Butterfly",
+  "category": "animals",
+  "description": "A beautiful butterfly with colorful symmetrical wings",
+  "tags": [
+    "butterfly",
+    "insect",
+    "wings",
+    "colorful",
+    "nature",
+    "beautiful"
+  ],
+  "thumbnailDescription": "Purple and blue butterfly",
+  "tiles": [
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 9,
+      "rotation": "R0",
+      "color": "PURPLE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 9,
+      "rotation": "R0",
+      "color": "PURPLE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 12,
+      "rotation": "R0",
+      "color": "PURPLE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 12,
+      "rotation": "R0",
+      "color": "PURPLE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 6,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 15,
+      "y": 6,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 15,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 15,
+      "y": 15,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 3,
+      "y": 3,
+      "rotation": "R0",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 18,
+      "y": 3,
+      "rotation": "R0",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 3,
+      "y": 18,
+      "rotation": "R180",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 18,
+      "y": 18,
+      "rotation": "R180",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 6,
+      "y": 3,
+      "rotation": "R180",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 15,
+      "y": 3,
+      "rotation": "R180",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 6,
+      "y": 18,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 15,
+      "y": 18,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 9,
+      "y": 6,
+      "rotation": "R90",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 12,
+      "y": 6,
+      "rotation": "R180",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 9,
+      "y": 15,
+      "rotation": "R0",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 12,
+      "y": 15,
+      "rotation": "R270",
+      "color": "YELLOW"
+    }
+  ]
+}

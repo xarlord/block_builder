@@ -1,0 +1,116 @@
+{
+  "id": "star",
+  "name": "Star",
+  "category": "nature",
+  "description": "A bright five-pointed star",
+  "tags": [
+    "star",
+    "night",
+    "bright",
+    "shine",
+    "space",
+    "twinkle",
+    "yellow"
+  ],
+  "thumbnailDescription": "Bright yellow star",
+  "tiles": [
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 9,
+      "y": 3,
+      "rotation": "R180",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 12,
+      "y": 3,
+      "rotation": "R180",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 6,
+      "rotation": "R0",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 6,
+      "rotation": "R0",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 9,
+      "rotation": "R0",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 9,
+      "rotation": "R0",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 6,
+      "y": 6,
+      "rotation": "R270",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 15,
+      "y": 6,
+      "rotation": "R90",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 6,
+      "y": 12,
+      "rotation": "R0",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 15,
+      "y": 12,
+      "rotation": "R90",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 3,
+      "y": 12,
+      "rotation": "R270",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 18,
+      "y": 12,
+      "rotation": "R90",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 9,
+      "y": 12,
+      "rotation": "R0",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 12,
+      "y": 12,
+      "rotation": "R0",
+      "color": "YELLOW"
+    }
+  ]
+}

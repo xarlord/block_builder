@@ -1,0 +1,131 @@
+{
+  "id": "sun",
+  "name": "Sun",
+  "category": "nature",
+  "description": "A bright sun with radiating rays",
+  "tags": [
+    "sun",
+    "bright",
+    "sky",
+    "day",
+    "warm",
+    "yellow",
+    "shine",
+    "light"
+  ],
+  "thumbnailDescription": "Bright yellow sun with orange rays",
+  "tiles": [
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 9,
+      "rotation": "R0",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 9,
+      "rotation": "R0",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 12,
+      "rotation": "R0",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 12,
+      "rotation": "R0",
+      "color": "YELLOW"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 9,
+      "y": 6,
+      "rotation": "R180",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 12,
+      "y": 6,
+      "rotation": "R180",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 9,
+      "y": 15,
+      "rotation": "R0",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 12,
+      "y": 15,
+      "rotation": "R0",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 6,
+      "y": 9,
+      "rotation": "R90",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 6,
+      "y": 12,
+      "rotation": "R90",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 15,
+      "y": 9,
+      "rotation": "R270",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 15,
+      "y": 12,
+      "rotation": "R270",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 6,
+      "y": 6,
+      "rotation": "R270",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 15,
+      "y": 6,
+      "rotation": "R180",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 6,
+      "y": 15,
+      "rotation": "R0",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 15,
+      "y": 15,
+      "rotation": "R90",
+      "color": "ORANGE"
+    }
+  ]
+}
