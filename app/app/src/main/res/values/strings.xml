@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">ArchitectAI</string>
+    <string name="app_name">Block Builder</string>
+    <string name="app_description">Build tile compositions from geometric shapes</string>
 </resources>
