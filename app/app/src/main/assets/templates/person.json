@@ -1,0 +1,130 @@
+{
+  "id": "person",
+  "name": "Person",
+  "category": "other",
+  "description": "A simple stick-figure person made of tiles",
+  "tags": [
+    "person",
+    "human",
+    "figure",
+    "man",
+    "woman",
+    "people",
+    "stick figure"
+  ],
+  "thumbnailDescription": "Colorful tile person",
+  "tiles": [
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 3,
+      "rotation": "R0",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 3,
+      "rotation": "R0",
+      "color": "ORANGE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 9,
+      "y": 0,
+      "rotation": "R180",
+      "color": "BROWN"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 12,
+      "y": 0,
+      "rotation": "R180",
+      "color": "BROWN"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 6,
+      "rotation": "R0",
+      "color": "RED"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 6,
+      "rotation": "R0",
+      "color": "RED"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 9,
+      "rotation": "R0",
+      "color": "RED"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 9,
+      "rotation": "R0",
+      "color": "RED"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 6,
+      "y": 6,
+      "rotation": "R270",
+      "color": "RED"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 15,
+      "y": 6,
+      "rotation": "R180",
+      "color": "RED"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 12,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 12,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 15,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 15,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 6,
+      "y": 18,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 15,
+      "y": 18,
+      "rotation": "R0",
+      "color": "BLUE"
+    }
+  ]
+}

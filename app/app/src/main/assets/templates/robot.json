@@ -1,0 +1,137 @@
+{
+  "id": "robot",
+  "name": "Robot",
+  "category": "other",
+  "description": "A friendly robot with antenna and screen face",
+  "tags": [
+    "robot",
+    "machine",
+    "technology",
+    "android",
+    "cyber",
+    "future",
+    "ai"
+  ],
+  "thumbnailDescription": "Gray robot with blue screen face",
+  "tiles": [
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 12,
+      "y": 0,
+      "rotation": "R180",
+      "color": "RED"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 3,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 3,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 6,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "WINDOW_SQUARE",
+      "x": 12,
+      "y": 6,
+      "rotation": "R0",
+      "color": "BLUE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 9,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 9,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 12,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 12,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 12,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 15,
+      "y": 12,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 6,
+      "y": 6,
+      "rotation": "R270",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 15,
+      "y": 6,
+      "rotation": "R180",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 15,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 15,
+      "y": 15,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 6,
+      "y": 18,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 15,
+      "y": 18,
+      "rotation": "R0",
+      "color": "GRAY"
+    }
+  ]
+}

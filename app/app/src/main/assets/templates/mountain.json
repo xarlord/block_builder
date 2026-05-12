@@ -1,0 +1,144 @@
+{
+  "id": "mountain",
+  "name": "Mountain",
+  "category": "nature",
+  "description": "A snow-capped mountain peak",
+  "tags": [
+    "mountain",
+    "peak",
+    "snow",
+    "nature",
+    "landscape",
+    "hike",
+    "summit"
+  ],
+  "thumbnailDescription": "Gray mountain with white snow cap",
+  "tiles": [
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 9,
+      "y": 3,
+      "rotation": "R180",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 12,
+      "y": 3,
+      "rotation": "R180",
+      "color": "WHITE"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 6,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 6,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 9,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 9,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 9,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 15,
+      "y": 9,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 3,
+      "y": 12,
+      "rotation": "R0",
+      "color": "BROWN"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 6,
+      "y": 12,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 9,
+      "y": 12,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 12,
+      "y": 12,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 15,
+      "y": 12,
+      "rotation": "R0",
+      "color": "GRAY"
+    },
+    {
+      "tileType": "SOLID_SQUARE",
+      "x": 18,
+      "y": 12,
+      "rotation": "R0",
+      "color": "BROWN"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 3,
+      "y": 9,
+      "rotation": "R90",
+      "color": "GREEN"
+    },
+    {
+      "tileType": "EQUILATERAL_TRIANGLE",
+      "x": 18,
+      "y": 9,
+      "rotation": "R270",
+      "color": "GREEN"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 3,
+      "y": 6,
+      "rotation": "R270",
+      "color": "GREEN"
+    },
+    {
+      "tileType": "RIGHT_TRIANGLE",
+      "x": 18,
+      "y": 6,
+      "rotation": "R180",
+      "color": "GREEN"
+    }
+  ]
+}
