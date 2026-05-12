@@ -36,6 +36,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import com.architectai.core.designsystem.sound.LocalSoundEffectManager
+import com.architectai.core.designsystem.sound.SoundEffectPlayer
 import com.architectai.core.domain.model.Rotation
 import com.architectai.core.domain.model.TileType
 import com.architectai.feature.build.canvas.CanvasState
@@ -46,7 +48,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun BuildCanvas(
     viewModel: BuildViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    soundEffectPlayer: SoundEffectPlayer = LocalSoundEffectManager.current
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val canvasState = uiState.canvasState
@@ -168,6 +171,8 @@ fun BuildCanvas(
                             viewModel.endDrag()
                             // --- Task 3: Enhanced haptics — CONFIRM for snap ---
                             view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                            // Sound: tile placed
+                            soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.TILE_PLACE)
                         }
                         dragTileId = null
                         isLongPressDrag = false
