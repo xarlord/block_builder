@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Redo
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -47,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -69,6 +71,7 @@ fun BuildScreen(
     val canvasState = uiState.canvasState
     val snackbarHostState = remember { SnackbarHostState() }
     val view = LocalView.current
+    val context = LocalContext.current
 
     // Color for new tiles
     var selectedColorForNewTiles by remember { mutableStateOf(TileColor.RED) }
@@ -182,6 +185,24 @@ fun BuildScreen(
                             imageVector = Icons.Default.Redo,
                             contentDescription = "Redo",
                             tint = if (uiState.canRedo) Color.White else Color.White.copy(alpha = 0.38f)
+                        )
+                    }
+                    // Share button
+                    IconButton(
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            viewModel.shareComposition(context)
+                        },
+                        enabled = canvasState.tiles.isNotEmpty(),
+                        modifier = Modifier.semantics {
+                            contentDescription = "Share composition as image"
+                            testTag = "shareButton"
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "Share",
+                            tint = if (canvasState.tiles.isNotEmpty()) Color.White else Color.White.copy(alpha = 0.38f)
                         )
                     }
                     androidx.compose.material3.TextButton(
