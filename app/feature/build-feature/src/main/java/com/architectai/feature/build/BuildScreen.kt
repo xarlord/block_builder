@@ -18,10 +18,15 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Redo
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -143,6 +148,42 @@ fun BuildScreen(
                     titleContentColor = Color.White
                 ),
                 actions = {
+                    // Undo button
+                    IconButton(
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            viewModel.undo()
+                        },
+                        enabled = uiState.canUndo,
+                        modifier = Modifier.semantics {
+                            contentDescription = "Undo last action"
+                            testTag = "undoButton"
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Undo,
+                            contentDescription = "Undo",
+                            tint = if (uiState.canUndo) Color.White else Color.White.copy(alpha = 0.38f)
+                        )
+                    }
+                    // Redo button
+                    IconButton(
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            viewModel.redo()
+                        },
+                        enabled = uiState.canRedo,
+                        modifier = Modifier.semantics {
+                            contentDescription = "Redo last action"
+                            testTag = "redoButton"
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Redo,
+                            contentDescription = "Redo",
+                            tint = if (uiState.canRedo) Color.White else Color.White.copy(alpha = 0.38f)
+                        )
+                    }
                     androidx.compose.material3.TextButton(
                         onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)

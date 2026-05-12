@@ -10,6 +10,7 @@ import com.architectai.core.domain.model.Rotation
 import com.architectai.core.domain.model.TileColor
 import com.architectai.core.domain.model.TilePlacement
 import com.architectai.core.domain.model.TileType
+import com.architectai.feature.build.canvas.CanvasAction
 import com.architectai.feature.build.canvas.CanvasState
 import com.architectai.feature.build.canvas.CanvasTile
 import com.architectai.feature.build.canvas.DragState
@@ -25,7 +26,9 @@ data class BuildUiState(
     val dragState: DragState = DragState(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val saveConfirmation: String? = null
+    val saveConfirmation: String? = null,
+    val canUndo: Boolean = false,
+    val canRedo: Boolean = false
 )
 
 @HiltViewModel
@@ -36,14 +39,111 @@ class BuildViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(BuildUiState())
     val uiState: StateFlow<BuildUiState> = _uiState.asStateFlow()
 
+    private val undoStack = ArrayDeque<CanvasAction>(MAX_UNDO_STACK_SIZE)
+    private val redoStack = ArrayDeque<CanvasAction>(MAX_UNDO_STACK_SIZE)
+
+    /** Tracks the starting grid position of a tile being dragged for undo */
+    private var dragStartX: Int = 0
+    private var dragStartY: Int = 0
+
     companion object {
         /** 1 grid unit = 30dp at zoom 1.0 (matches CanvasState.bounds calculation) */
         const val GRID_UNIT_DP = 30f
+        const val MAX_UNDO_STACK_SIZE = 50
     }
+
+    // ─── Undo / Redo ────────────────────────────────────────────
+
+    fun undo() {
+        val action = synchronized(undoStack) {
+            if (undoStack.isEmpty()) return
+            undoStack.removeLast()
+        } ?: return
+        executeAction(action.inverse)
+        synchronized(redoStack) {
+            redoStack.addLast(action)
+            if (redoStack.size > MAX_UNDO_STACK_SIZE) redoStack.removeFirst()
+        }
+        updateUndoRedoState()
+    }
+
+    fun redo() {
+        val action = synchronized(redoStack) {
+            if (redoStack.isEmpty()) return
+            redoStack.removeLast()
+        } ?: return
+        executeAction(action)
+        synchronized(undoStack) {
+            undoStack.addLast(action)
+            if (undoStack.size > MAX_UNDO_STACK_SIZE) undoStack.removeFirst()
+        }
+        updateUndoRedoState()
+    }
+
+    /**
+     * Push an action onto the undo stack, clear redo stack, and execute it.
+     */
+    private fun pushAndExecute(action: CanvasAction) {
+        synchronized(undoStack) {
+            undoStack.addLast(action)
+            if (undoStack.size > MAX_UNDO_STACK_SIZE) undoStack.removeFirst()
+        }
+        synchronized(redoStack) {
+            redoStack.clear()
+        }
+        executeAction(action)
+        updateUndoRedoState()
+    }
+
+    /**
+     * Directly apply a CanvasAction to the state (used by undo/redo).
+     */
+    private fun executeAction(action: CanvasAction) {
+        val currentCanvasState = _uiState.value.canvasState
+        val newCanvasState = when (action) {
+            is CanvasAction.AddTile -> currentCanvasState.withTile(action.tile)
+            is CanvasAction.RemoveTile -> currentCanvasState.withTileRemoved(action.tileId)
+            is CanvasAction.MoveTile -> {
+                val updatedTiles = currentCanvasState.tiles.map { tile ->
+                    if (tile.id == action.tileId) {
+                        tile.copy(placement = tile.placement.copy(x = action.toX, y = action.toY))
+                    } else tile
+                }
+                currentCanvasState.copy(tiles = updatedTiles)
+            }
+            is CanvasAction.RotateTile -> {
+                val updatedTiles = currentCanvasState.tiles.map { tile ->
+                    if (tile.id == action.tileId) {
+                        tile.copy(placement = tile.placement.copy(rotation = action.toRotation))
+                    } else tile
+                }
+                currentCanvasState.copy(tiles = updatedTiles)
+            }
+            is CanvasAction.ChangeColor -> {
+                val updatedTiles = currentCanvasState.tiles.map { tile ->
+                    if (tile.id == action.tileId) {
+                        tile.copy(placement = tile.placement.copy(color = action.toColor))
+                    } else tile
+                }
+                currentCanvasState.copy(tiles = updatedTiles)
+            }
+            is CanvasAction.Clear -> CanvasState()
+            is CanvasAction.RestoreAll -> CanvasState(tiles = action.tiles)
+            is CanvasAction.ReplaceAll -> CanvasState(tiles = action.newTiles)
+        }
+        _uiState.value = _uiState.value.copy(canvasState = newCanvasState)
+    }
+
+    private fun updateUndoRedoState() {
+        val canUndo = synchronized(undoStack) { undoStack.isNotEmpty() }
+        val canRedo = synchronized(redoStack) { redoStack.isNotEmpty() }
+        _uiState.value = _uiState.value.copy(canUndo = canUndo, canRedo = canRedo)
+    }
+
+    // ─── Tile Operations ────────────────────────────────────────
 
     fun addTile(tileType: TileType, x: Int, y: Int) {
         viewModelScope.launch {
-            val currentState = _uiState.value.canvasState
             val placement = TilePlacement(
                 tileType = tileType,
                 x = x,
@@ -52,9 +152,7 @@ class BuildViewModel @Inject constructor(
                 color = TileColor.RED
             )
             val canvasTile = CanvasTile(placement)
-            _uiState.value = _uiState.value.copy(
-                canvasState = currentState.withTile(canvasTile)
-            )
+            pushAndExecute(CanvasAction.AddTile(canvasTile))
         }
     }
 
@@ -71,18 +169,17 @@ class BuildViewModel @Inject constructor(
         viewModelScope.launch {
             val currentState = _uiState.value.canvasState
             currentState.selectedTile?.let { tile ->
-                _uiState.value = _uiState.value.copy(
-                    canvasState = currentState.withTileRemoved(tile.id)
-                )
+                pushAndExecute(CanvasAction.RemoveTile(tile.id, tile))
             }
         }
     }
 
     fun clearCanvas() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(
-                canvasState = CanvasState()
-            )
+            val currentState = _uiState.value.canvasState
+            if (currentState.tiles.isNotEmpty()) {
+                pushAndExecute(CanvasAction.Clear(currentState.tiles))
+            }
         }
     }
 
@@ -97,6 +194,13 @@ class BuildViewModel @Inject constructor(
 
     fun startDragging(tileId: String, position: Offset) {
         viewModelScope.launch {
+            // Record the starting grid position for undo
+            val tile = _uiState.value.canvasState.tiles.firstOrNull { it.id == tileId }
+            if (tile != null) {
+                dragStartX = tile.placement.x
+                dragStartY = tile.placement.y
+            }
+
             _uiState.value = _uiState.value.copy(
                 dragState = DragState(
                     isDragging = true,
@@ -144,16 +248,38 @@ class BuildViewModel @Inject constructor(
                 val gridX = (snapPosition.x / GRID_UNIT_DP).toInt().coerceIn(0, canvasState.gridSize - tile.placement.tileType.widthUnits)
                 val gridY = (snapPosition.y / GRID_UNIT_DP).toInt().coerceIn(0, canvasState.gridSize - tile.placement.tileType.heightUnits)
 
-                val updatedPlacement = tile.placement.copy(x = gridX, y = gridY)
-                val updatedTile = tile.copy(placement = updatedPlacement)
-                val updatedTiles = canvasState.tiles.map {
-                    if (it.id == tileId) updatedTile else it
-                }
+                // Only record move action if tile actually moved
+                if (gridX != dragStartX || gridY != dragStartY) {
+                    val moveAction = CanvasAction.MoveTile(
+                        tileId = tileId,
+                        fromX = dragStartX,
+                        fromY = dragStartY,
+                        toX = gridX,
+                        toY = gridY
+                    )
+                    // Apply the move directly (don't use pushAndExecute since we update tile inline)
+                    synchronized(undoStack) {
+                        undoStack.addLast(moveAction)
+                        if (undoStack.size > MAX_UNDO_STACK_SIZE) undoStack.removeFirst()
+                    }
+                    synchronized(redoStack) {
+                        redoStack.clear()
+                    }
 
-                _uiState.value = _uiState.value.copy(
-                    canvasState = canvasState.copy(tiles = updatedTiles),
-                    dragState = DragState()
-                )
+                    val updatedPlacement = tile.placement.copy(x = gridX, y = gridY)
+                    val updatedTile = tile.copy(placement = updatedPlacement)
+                    val updatedTiles = canvasState.tiles.map {
+                        if (it.id == tileId) updatedTile else it
+                    }
+
+                    _uiState.value = _uiState.value.copy(
+                        canvasState = canvasState.copy(tiles = updatedTiles),
+                        dragState = DragState()
+                    )
+                    updateUndoRedoState()
+                } else {
+                    _uiState.value = _uiState.value.copy(dragState = DragState())
+                }
             } else {
                 _uiState.value = _uiState.value.copy(dragState = DragState())
             }
@@ -184,9 +310,8 @@ class BuildViewModel @Inject constructor(
     fun loadCompositionDirect(composition: Composition) {
         viewModelScope.launch {
             val canvasTiles = composition.tiles.map { CanvasTile(it) }
-            _uiState.value = _uiState.value.copy(
-                canvasState = CanvasState(tiles = canvasTiles)
-            )
+            val existingTiles = _uiState.value.canvasState.tiles
+            pushAndExecute(CanvasAction.ReplaceAll(oldTiles = existingTiles, newTiles = canvasTiles))
         }
     }
 
@@ -219,28 +344,22 @@ class BuildViewModel @Inject constructor(
     fun updateTileRotation(tileId: String, rotation: Rotation) {
         viewModelScope.launch {
             val canvasState = _uiState.value.canvasState
-            val updatedTiles = canvasState.tiles.map { tile ->
-                if (tile.id == tileId) {
-                    tile.copy(placement = tile.placement.copy(rotation = rotation))
-                } else tile
+            val tile = canvasState.tiles.firstOrNull { it.id == tileId } ?: return@launch
+            val fromRotation = tile.placement.rotation
+            if (fromRotation != rotation) {
+                pushAndExecute(CanvasAction.RotateTile(tileId, fromRotation, rotation))
             }
-            _uiState.value = _uiState.value.copy(
-                canvasState = canvasState.copy(tiles = updatedTiles)
-            )
         }
     }
 
     fun updateTileColor(tileId: String, color: TileColor) {
         viewModelScope.launch {
             val canvasState = _uiState.value.canvasState
-            val updatedTiles = canvasState.tiles.map { tile ->
-                if (tile.id == tileId) {
-                    tile.copy(placement = tile.placement.copy(color = color))
-                } else tile
+            val tile = canvasState.tiles.firstOrNull { it.id == tileId } ?: return@launch
+            val fromColor = tile.placement.color
+            if (fromColor != color) {
+                pushAndExecute(CanvasAction.ChangeColor(tileId, fromColor, color))
             }
-            _uiState.value = _uiState.value.copy(
-                canvasState = canvasState.copy(tiles = updatedTiles)
-            )
         }
     }
 
