@@ -43,6 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.architectai.core.designsystem.color.Accent
@@ -94,7 +97,9 @@ fun BuildScreen(
                         label = { Text("Composition name") },
                         placeholder = { Text("My Composition") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { testTag = "saveNameField" },
                         shape = RoundedCornerShape(12.dp)
                     )
                 }
@@ -138,7 +143,16 @@ fun BuildScreen(
                     titleContentColor = Color.White
                 ),
                 actions = {
-                    androidx.compose.material3.TextButton(onClick = { viewModel.clearCanvas() }) {
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            viewModel.clearCanvas()
+                        },
+                        modifier = Modifier.semantics {
+                            contentDescription = "Clear all tiles from canvas"
+                            testTag = "clearButton"
+                        }
+                    ) {
                         Text("Clear", color = Color.White)
                     }
                 }
@@ -157,6 +171,7 @@ fun BuildScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
+                    .semantics { testTag = "buildCanvas" }
             )
 
             // Bottom controls
@@ -169,14 +184,20 @@ fun BuildScreen(
                 Text(
                     text = "Total Tiles: ${canvasState.tiles.size}/200",
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.semantics {
+                        contentDescription = "${canvasState.tiles.size} of 200 tiles placed"
+                        testTag = "tileCount"
+                    }
                 )
 
                 // Rotation toolbar - show when a tile is selected
                 val selectedTile = canvasState.selectedTile
                 if (selectedTile != null) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { testTag = "rotationToolbar" },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -226,12 +247,18 @@ fun BuildScreen(
                 ) {
                     AppButton(
                         onClick = {
-                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            // --- Task 3: Enhanced haptics — CONFIRM for delete ---
+                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                             viewModel.deleteSelectedTile()
                         },
                         text = "Delete",
                         enabled = canvasState.selectedTile != null,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics {
+                                contentDescription = "Delete selected tile"
+                                testTag = "deleteButton"
+                            }
                     )
 
                     AppButton(
@@ -246,7 +273,12 @@ fun BuildScreen(
                             )
                         },
                         text = "Add Tile",
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .semantics {
+                                contentDescription = "Add a new tile to the canvas"
+                                testTag = "addTileButton"
+                            }
                     )
                 }
 
@@ -261,7 +293,12 @@ fun BuildScreen(
                         containerColor = Accent,
                         contentColor = Color.White
                     ),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = "Save composition to gallery"
+                            testTag = "saveToGalleryButton"
+                        },
                     enabled = canvasState.tiles.isNotEmpty()
                 ) {
                     Text("Save to Gallery", style = MaterialTheme.typography.labelLarge)
@@ -296,7 +333,12 @@ private fun RotationButton(
             containerColor = containerColor,
             contentColor = contentColor
         ),
-        modifier = Modifier.size(width = 56.dp, height = 36.dp)
+        modifier = Modifier
+            .size(width = 56.dp, height = 36.dp)
+            .semantics {
+                contentDescription = "Set rotation to $label"
+                testTag = "rotation_$label"
+            }
     ) {
         Text(label, style = MaterialTheme.typography.labelSmall)
     }
@@ -315,7 +357,8 @@ private fun ColorPickerRow(
         )
         Spacer(modifier = Modifier.height(4.dp))
         LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.semantics { testTag = "colorPicker" }
         ) {
             // Exclude TRANSLUCENT from the picker - it's implicitly for WINDOW_SQUARE
             val pickableColors = TileColor.entries.filter { it != TileColor.TRANSLUCENT }
@@ -326,9 +369,12 @@ private fun ColorPickerRow(
                     Color.Gray
                 }
                 val isSelected = tileColor == selectedColor
+                // --- Task 5: Minimum touch target size 48dp ---
                 Box(
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(48.dp) // touch target
+                        .padding(6.dp) // padding so visual circle is 36dp
+                        .size(36.dp) // visual circle size
                         .clip(CircleShape)
                         .background(color)
                         .then(
@@ -347,6 +393,10 @@ private fun ColorPickerRow(
                             }
                         )
                         .clickable { onColorSelected(tileColor) }
+                        // --- Task 4: Accessibility content description ---
+                        .semantics {
+                            contentDescription = "Select ${tileColor.displayName} color"
+                        }
                 )
             }
         }
