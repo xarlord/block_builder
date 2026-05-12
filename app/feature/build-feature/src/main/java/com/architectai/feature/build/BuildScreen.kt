@@ -22,6 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Redo
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Undo
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,6 +35,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
@@ -58,6 +61,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.architectai.core.designsystem.color.Accent
 import com.architectai.core.designsystem.color.Header
 import com.architectai.core.designsystem.components.AppButton
+import com.architectai.core.designsystem.sound.LocalSoundEffectManager
+import com.architectai.core.designsystem.sound.SoundEffectManager
+import com.architectai.core.designsystem.sound.SoundEffectPlayer
 import com.architectai.core.domain.model.Rotation
 import com.architectai.core.domain.model.TileColor
 import com.architectai.core.domain.model.TileType
@@ -72,6 +78,21 @@ fun BuildScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val view = LocalView.current
     val context = LocalContext.current
+
+    // Sound effects manager — initialised once, released when the composable leaves composition
+    val soundEffectPlayer = remember {
+        val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        val enabled = prefs.getBoolean(PREF_KEY_SOUND_ENABLED, true)
+        val manager = SoundEffectManager(context)
+        manager.init()
+        manager.setEnabled(enabled)
+        manager
+    }
+    // Restore sound preference on recomposition
+    var soundEnabled by remember {
+        val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        mutableStateOf(prefs.getBoolean(PREF_KEY_SOUND_ENABLED, true))
+    }
 
     // Color for new tiles
     var selectedColorForNewTiles by remember { mutableStateOf(TileColor.RED) }
@@ -116,6 +137,7 @@ fun BuildScreen(
                 Button(
                     onClick = {
                         viewModel.saveComposition(saveName)
+                        soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.COMPOSITION_DONE)
                         saveName = ""
                         showSaveDialog = false
                     },
@@ -151,10 +173,30 @@ fun BuildScreen(
                     titleContentColor = Color.White
                 ),
                 actions = {
+                    // Sound toggle
+                    IconButton(
+                        onClick = {
+                            soundEnabled = !soundEnabled
+                            soundEffectPlayer.setEnabled(soundEnabled)
+                            val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+                            prefs.edit().putBoolean(PREF_KEY_SOUND_ENABLED, soundEnabled).apply()
+                        },
+                        modifier = Modifier.semantics {
+                            contentDescription = if (soundEnabled) "Disable sound effects" else "Enable sound effects"
+                            testTag = "soundToggle"
+                        }
+                    ) {
+                        Icon(
+                            imageVector = if (soundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                            contentDescription = if (soundEnabled) "Sound on" else "Sound off",
+                            tint = Color.White
+                        )
+                    }
                     // Undo button
                     IconButton(
                         onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.BUTTON_PRESS)
                             viewModel.undo()
                         },
                         enabled = uiState.canUndo,
@@ -173,6 +215,7 @@ fun BuildScreen(
                     IconButton(
                         onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.BUTTON_PRESS)
                             viewModel.redo()
                         },
                         enabled = uiState.canRedo,
@@ -191,6 +234,7 @@ fun BuildScreen(
                     IconButton(
                         onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.BUTTON_PRESS)
                             viewModel.shareComposition(context)
                         },
                         enabled = canvasState.tiles.isNotEmpty(),
@@ -208,6 +252,7 @@ fun BuildScreen(
                     androidx.compose.material3.TextButton(
                         onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.BUTTON_PRESS)
                             viewModel.clearCanvas()
                         },
                         modifier = Modifier.semantics {
@@ -230,6 +275,7 @@ fun BuildScreen(
             // Canvas area
             BuildCanvas(
                 viewModel = viewModel,
+                soundEffectPlayer = soundEffectPlayer,
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -280,6 +326,7 @@ fun BuildScreen(
                     selectedColor = selectedTile?.placement?.color ?: selectedColorForNewTiles,
                     onColorSelected = { color ->
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.COLOR_SELECT)
                         if (selectedTile != null) {
                             viewModel.updateTileColor(selectedTile.id, color)
                         } else {
@@ -311,6 +358,7 @@ fun BuildScreen(
                         onClick = {
                             // --- Task 3: Enhanced haptics — CONFIRM for delete ---
                             view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                            soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.TILE_DELETE)
                             viewModel.deleteSelectedTile()
                         },
                         text = "Delete",
@@ -326,6 +374,7 @@ fun BuildScreen(
                     AppButton(
                         onClick = {
                             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.BUTTON_PRESS)
                             val randomX = (0..20).random()
                             val randomY = (0..20).random()
                             viewModel.addTile(
@@ -464,3 +513,7 @@ private fun ColorPickerRow(
         }
     }
 }
+
+/** SharedPreferences keys for sound settings. */
+private const val PREFS_NAME = "sound_effects_prefs"
+private const val PREF_KEY_SOUND_ENABLED = "sound_enabled"
