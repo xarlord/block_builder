@@ -1,6 +1,13 @@
 package com.architectai.feature.build
 
+import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.compose.ui.geometry.Offset
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.architectai.core.data.repository.CompositionRepository
@@ -19,6 +26,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 
 data class BuildUiState(
@@ -365,6 +374,89 @@ class BuildViewModel @Inject constructor(
 
     fun clearSaveConfirmation() {
         _uiState.value = _uiState.value.copy(saveConfirmation = null)
+    }
+
+    // ─── Share / Export / Import ────────────────────────────────────
+
+    /**
+     * Render the current canvas tiles to a PNG and share via Intent.
+     * Must be called from an Activity context.
+     */
+    fun shareComposition(context: Context) {
+        val tiles = _uiState.value.canvasState.tiles
+        if (tiles.isEmpty()) return
+
+        val bitmap = CanvasCapture.renderToBitmap(tiles)
+        val compositionsDir = File(context.cacheDir, "compositions")
+        compositionsDir.mkdirs()
+        val imageFile = File(compositionsDir, "composition_${System.currentTimeMillis()}.png")
+        FileOutputStream(imageFile).use { fos ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
+            fos.flush()
+        }
+
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            imageFile
+        )
+
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/png"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share Composition"))
+    }
+
+    /**
+     * Export the current canvas tiles as a JSON string.
+     */
+    fun exportToJson(): String {
+        val tiles = _uiState.value.canvasState.tiles
+        val placements = tiles.map { it.placement }
+        return CompositionJsonCodec.exportToJson("Composition", placements)
+    }
+
+    /**
+     * Share the composition as a JSON file via Intent.
+     */
+    fun shareJson(context: Context) {
+        val tiles = _uiState.value.canvasState.tiles
+        if (tiles.isEmpty()) return
+
+        val json = exportToJson()
+        val compositionsDir = File(context.cacheDir, "compositions")
+        compositionsDir.mkdirs()
+        val jsonFile = File(compositionsDir, "composition_${System.currentTimeMillis()}.json")
+        jsonFile.writeText(json)
+
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            jsonFile
+        )
+
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/json"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Export JSON"))
+    }
+
+    /**
+     * Import tiles from a JSON string. Returns true on success.
+     */
+    fun importFromJson(json: String): Boolean {
+        val result = CompositionJsonCodec.importFromJson(json) ?: return false
+        val (_, placements) = result
+        if (placements.isEmpty()) return false
+
+        val canvasTiles = placements.map { CanvasTile(it) }
+        val existingTiles = _uiState.value.canvasState.tiles
+        pushAndExecute(CanvasAction.ReplaceAll(oldTiles = existingTiles, newTiles = canvasTiles))
+        return true
     }
 
     private fun Float.roundToInt(): Int = kotlin.math.round(this).toInt()

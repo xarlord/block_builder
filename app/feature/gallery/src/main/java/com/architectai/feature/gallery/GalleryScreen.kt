@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -76,6 +77,7 @@ fun GalleryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val selectedComposition by viewModel.selectedComposition.collectAsState()
+    val context = LocalContext.current
 
     // Detail dialog
     selectedComposition?.let { composition ->
@@ -92,6 +94,12 @@ fun GalleryScreen(
             onLoadToBuild = {
                 onLoadToBuild?.invoke(composition)
                 viewModel.selectComposition(null)
+            },
+            onShareImage = {
+                viewModel.shareCompositionAsImage(context, composition)
+            },
+            onExportJson = {
+                viewModel.shareCompositionAsJson(context, composition)
             }
         )
     }
@@ -459,7 +467,9 @@ private fun CompositionDetailDialog(
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
     onRename: (String) -> Unit,
-    onLoadToBuild: () -> Unit
+    onLoadToBuild: () -> Unit,
+    onShareImage: () -> Unit = {},
+    onExportJson: () -> Unit = {}
 ) {
     var showRenameField by remember { mutableStateOf(false) }
     var renameValue by remember { mutableStateOf(composition.name) }
@@ -592,6 +602,27 @@ private fun CompositionDetailDialog(
 
                 // Action buttons
                 if (!showRenameField && !showDeleteConfirm) {
+                    // Share & Export buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                            onClick = onShareImage,
+                            shape = RoundedCornerShape(50),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Share")
+                        }
+                        OutlinedButton(
+                            onClick = onExportJson,
+                            shape = RoundedCornerShape(50),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Export JSON")
+                        }
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)

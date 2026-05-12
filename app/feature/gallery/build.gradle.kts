@@ -38,6 +38,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:svg"))
+    implementation(project(":feature:build-feature"))
 
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)

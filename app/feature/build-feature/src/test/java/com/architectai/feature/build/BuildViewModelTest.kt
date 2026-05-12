@@ -745,4 +745,90 @@ class BuildViewModelTest {
         advanceUntilIdle()
         assertEquals(0, viewModel.uiState.value.canvasState.tiles.size)
     }
+
+    // ─── Export / Import Tests ────────────────────────────────────
+
+    @Test
+    fun exportToJson_returnsValidJson() = runTest {
+        viewModel.addTile(TileType.SOLID_SQUARE, 0, 0)
+        advanceUntilIdle()
+
+        val json = viewModel.exportToJson()
+        assertTrue(json.contains("\"version\""))
+        assertTrue(json.contains("\"tiles\""))
+        assertTrue(json.contains("SOLID_SQUARE"))
+    }
+
+    @Test
+    fun exportToJson_emptyCanvas_returnsEmptyTilesArray() = runTest {
+        val json = viewModel.exportToJson()
+        assertTrue(json.contains("\"tiles\""))
+    }
+
+    @Test
+    fun importFromJson_validJson_loadsTiles() = runTest {
+        val json = """{
+            "version": 1,
+            "name": "Test Import",
+            "tiles": [
+                {"tileType": "SOLID_SQUARE", "x": 5, "y": 10, "rotation": "R0", "color": "BLUE"},
+                {"tileType": "RIGHT_TRIANGLE", "x": 8, "y": 13, "rotation": "R90", "color": "GREEN"}
+            ]
+        }"""
+
+        val result = viewModel.importFromJson(json)
+        advanceUntilIdle()
+
+        assertTrue(result)
+        val tiles = viewModel.uiState.value.canvasState.tiles
+        assertEquals(2, tiles.size)
+        assertEquals(TileType.SOLID_SQUARE, tiles[0].placement.tileType)
+        assertEquals(5, tiles[0].placement.x)
+        assertEquals(10, tiles[0].placement.y)
+        assertEquals(TileColor.BLUE, tiles[0].placement.color)
+        assertEquals(TileType.RIGHT_TRIANGLE, tiles[1].placement.tileType)
+        assertEquals(Rotation.R90, tiles[1].placement.rotation)
+    }
+
+    @Test
+    fun importFromJson_invalidJson_returnsFalse() = runTest {
+        val result = viewModel.importFromJson("not valid json")
+        assertFalse(result)
+    }
+
+    @Test
+    fun importFromJson_emptyTiles_returnsFalse() = runTest {
+        val json = """{"version": 1, "name": "Empty", "tiles": []}"""
+        val result = viewModel.importFromJson(json)
+        assertFalse(result)
+    }
+
+    @Test
+    fun exportImportRoundTrip_preservesTiles() = runTest {
+        viewModel.addTile(TileType.SOLID_SQUARE, 3, 7)
+        advanceUntilIdle()
+        viewModel.updateTileRotation(
+            viewModel.uiState.value.canvasState.tiles[0].id,
+            Rotation.R180
+        )
+        advanceUntilIdle()
+
+        val json = viewModel.exportToJson()
+
+        // Clear and import
+        viewModel.clearCanvas()
+        advanceUntilIdle()
+        assertEquals(0, viewModel.uiState.value.canvasState.tiles.size)
+
+        val result = viewModel.importFromJson(json)
+        advanceUntilIdle()
+
+        assertTrue(result)
+        val tiles = viewModel.uiState.value.canvasState.tiles
+        assertEquals(1, tiles.size)
+        assertEquals(TileType.SOLID_SQUARE, tiles[0].placement.tileType)
+        assertEquals(3, tiles[0].placement.x)
+        assertEquals(7, tiles[0].placement.y)
+        assertEquals(Rotation.R180, tiles[0].placement.rotation)
+    }
 }
