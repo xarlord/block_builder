@@ -1,6 +1,10 @@
 package com.architectai.feature.build
 
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -9,9 +13,11 @@ import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -21,7 +27,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -29,10 +34,14 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.architectai.core.domain.model.Rotation
 import com.architectai.core.domain.model.TileType
 import com.architectai.feature.build.canvas.CanvasState
 import com.architectai.feature.build.canvas.CanvasTile
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun BuildCanvas(
@@ -55,10 +64,69 @@ fun BuildCanvas(
     // Haptic feedback
     val view = LocalView.current
 
+    // --- Task 1: Staggered fadeIn + scaleIn animation for new tiles ---
+    val animatedTiles = remember { mutableStateMapOf<String, Animatable<Float, AnimationVector1D>>() }
+
+    // Track previously seen tile IDs so we only animate newly added ones
+    val currentTileIds = canvasState.tiles.map { it.id }.toSet()
+    LaunchedEffect(currentTileIds) {
+        val existingIds = animatedTiles.keys.toSet()
+        val newIds = currentTileIds - existingIds
+        // Remove stale entries (tiles that no longer exist)
+        (existingIds - currentTileIds).forEach { animatedTiles.remove(it) }
+        // Animate new tiles with staggered delay
+        newIds.forEachIndexed { index, id ->
+            val animatable = Animatable(0f)
+            animatedTiles[id] = animatable
+            launch {
+                delay(index * 50L) // 50ms stagger per tile
+                animatable.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = 0.6f,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                )
+            }
+        }
+    }
+
+    // --- Task 2: Snap bounce animation for tiles that just settled ---
+    val snapAnimations = remember { mutableStateMapOf<String, Animatable<Float, AnimationVector1D>>() }
+    // Track which tile was last dragged so we can trigger snap on it
+    var lastDraggedTileId by remember { mutableStateOf<String?>(null) }
+
+    // Detect when drag ends → start snap bounce animation
+    val isDragging = dragState.isDragging
+    LaunchedEffect(isDragging) {
+        if (!isDragging && lastDraggedTileId != null) {
+            val tileId = lastDraggedTileId!!
+            val animatable = Animatable(0f)
+            snapAnimations[tileId] = animatable
+            launch {
+                // Bounce: 0 → 1 overshoot then settle back
+                animatable.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(
+                        dampingRatio = 0.4f,
+                        stiffness = Spring.StiffnessHigh
+                    )
+                )
+                // Clean up after animation settles
+                snapAnimations.remove(tileId)
+            }
+            lastDraggedTileId = null
+        }
+    }
+
     Canvas(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            // --- Task 4: Accessibility content description ---
+            .semantics {
+                contentDescription = "Build canvas with ${canvasState.tiles.size} tiles. Pinch to zoom, drag to move tiles."
+            }
             // Zoom/pan via pinch gesture (two-finger)
             .pointerInput(Unit) {
                 detectTransformGestures { _, pan, zoom, _ ->
@@ -81,6 +149,7 @@ fun BuildCanvas(
                         val hitTile = hitTestTile(offset, canvasState.tiles, currentScale, currentOffset)
                         if (hitTile != null) {
                             dragTileId = hitTile.id
+                            lastDraggedTileId = hitTile.id
                             isLongPressDrag = true
                             val transformedOffset = screenToCanvas(offset, currentScale, currentOffset)
                             viewModel.startDragging(hitTile.id, transformedOffset)
@@ -97,7 +166,8 @@ fun BuildCanvas(
                     onDragEnd = {
                         if (dragTileId != null) {
                             viewModel.endDrag()
-                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            // --- Task 3: Enhanced haptics — CONFIRM for snap ---
+                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
                         }
                         dragTileId = null
                         isLongPressDrag = false
@@ -151,6 +221,23 @@ fun BuildCanvas(
                         val isBeingDragged = dragState.isTileDrag && dragState.draggedTileId == tile.id
                         val placement = tile.placement
                         val bounds = tile.bounds
+
+                        // --- Task 1: Staggered entry animation progress ---
+                        val entryProgress = animatedTiles[tile.id]?.value ?: 1f
+                        val entryScale = 0.5f + 0.5f * entryProgress // 0.5 → 1.0
+                        val entryAlpha = entryProgress // 0 → 1
+
+                        // --- Task 2: Snap bounce animation progress ---
+                        val snapProgress = snapAnimations[tile.id]?.value ?: 1f
+                        // Snap scale: overshoot to 1.1 then settle to 1.0
+                        // Using a decaying bounce: at snapProgress=0.5 → 1.1, at 1.0 → 1.0
+                        val snapBounce = if (snapProgress < 1f) {
+                            1f + 0.1f * kotlin.math.sin(snapProgress * Math.PI.toFloat()).toFloat() * (1f - snapProgress)
+                        } else 1f
+
+                        val combinedScale = entryScale * snapBounce
+                        val combinedAlpha = entryAlpha
+
                         val fillColor = try {
                             Color(android.graphics.Color.parseColor(placement.color.hex))
                         } catch (_: IllegalArgumentException) {
@@ -184,56 +271,69 @@ fun BuildCanvas(
                             )
                         }
 
-                        when (placement.tileType) {
-                            TileType.SOLID_SQUARE, TileType.WINDOW_SQUARE -> {
-                                val isTranslucent = placement.tileType == TileType.WINDOW_SQUARE
-                                val alpha = if (isBeingDragged) 0.85f else 1f
+                        // --- Apply entry/snap scale + alpha around tile center ---
+                        val centerX = drawOffset.x + tileWidth / 2f
+                        val centerY = drawOffset.y + tileHeight / 2f
 
-                                drawRoundRect(
-                                    color = if (isTranslucent) fillColor.copy(alpha = 0.6f * alpha) else fillColor.copy(alpha = alpha),
-                                    topLeft = drawOffset,
-                                    size = Size(bounds.width, bounds.height),
-                                    cornerRadius = CornerRadius(4f)
-                                )
-                                drawRoundRect(
-                                    color = borderColor,
-                                    style = Stroke(width = 3f),
-                                    cornerRadius = CornerRadius(4f),
-                                    topLeft = drawOffset,
-                                    size = Size(bounds.width, bounds.height)
-                                )
-                                if (isTranslucent) {
-                                    drawRoundRect(
-                                        color = Color.White.copy(alpha = 0.2f),
-                                        topLeft = Offset(drawOffset.x + 8, drawOffset.y + 8),
-                                        size = Size(bounds.width - 16, bounds.height - 16),
-                                        cornerRadius = CornerRadius(2f)
-                                    )
+                        // Use save/restore-like translate+scale for per-tile transform
+                        val alpha = if (isBeingDragged) 0.85f * combinedAlpha else combinedAlpha
+
+                        // Apply scale around tile center using translate + scale
+                        translate(left = centerX, top = centerY) {
+                            scale(scale = combinedScale, pivot = Offset.Zero) {
+                                translate(left = -tileWidth / 2f, top = -tileHeight / 2f) {
+                                    when (placement.tileType) {
+                                        TileType.SOLID_SQUARE, TileType.WINDOW_SQUARE -> {
+                                            val isTranslucent = placement.tileType == TileType.WINDOW_SQUARE
+
+                                            drawRoundRect(
+                                                color = if (isTranslucent) fillColor.copy(alpha = 0.6f * alpha) else fillColor.copy(alpha = alpha),
+                                                topLeft = Offset.Zero,
+                                                size = Size(bounds.width, bounds.height),
+                                                cornerRadius = CornerRadius(4f)
+                                            )
+                                            drawRoundRect(
+                                                color = borderColor.copy(alpha = alpha),
+                                                style = Stroke(width = 3f),
+                                                cornerRadius = CornerRadius(4f),
+                                                topLeft = Offset.Zero,
+                                                size = Size(bounds.width, bounds.height)
+                                            )
+                                            if (isTranslucent) {
+                                                drawRoundRect(
+                                                    color = Color.White.copy(alpha = 0.2f * alpha),
+                                                    topLeft = Offset(8f, 8f),
+                                                    size = Size(bounds.width - 16, bounds.height - 16),
+                                                    cornerRadius = CornerRadius(2f)
+                                                )
+                                            }
+                                        }
+
+                                        TileType.EQUILATERAL_TRIANGLE, TileType.ISOSCELES_TRIANGLE -> {
+                                            val path = equilateralTrianglePath(
+                                                x = 0f,
+                                                y = 0f,
+                                                width = tileWidth,
+                                                height = tileHeight,
+                                                rotation = placement.rotation
+                                            )
+                                            drawPath(path = path, color = fillColor.copy(alpha = alpha))
+                                            drawPath(path = path, color = borderColor.copy(alpha = alpha), style = Stroke(width = 3f))
+                                        }
+
+                                        TileType.RIGHT_TRIANGLE -> {
+                                            val path = rightTrianglePath(
+                                                x = 0f,
+                                                y = 0f,
+                                                width = tileWidth,
+                                                height = tileHeight,
+                                                rotation = placement.rotation
+                                            )
+                                            drawPath(path = path, color = fillColor.copy(alpha = alpha))
+                                            drawPath(path = path, color = borderColor.copy(alpha = alpha), style = Stroke(width = 3f))
+                                        }
+                                    }
                                 }
-                            }
-
-                            TileType.EQUILATERAL_TRIANGLE, TileType.ISOSCELES_TRIANGLE -> {
-                                val path = equilateralTrianglePath(
-                                    x = drawOffset.x,
-                                    y = drawOffset.y,
-                                    width = tileWidth,
-                                    height = tileHeight,
-                                    rotation = placement.rotation
-                                )
-                                drawPath(path = path, color = fillColor)
-                                drawPath(path = path, color = borderColor, style = Stroke(width = 3f))
-                            }
-
-                            TileType.RIGHT_TRIANGLE -> {
-                                val path = rightTrianglePath(
-                                    x = drawOffset.x,
-                                    y = drawOffset.y,
-                                    width = tileWidth,
-                                    height = tileHeight,
-                                    rotation = placement.rotation
-                                )
-                                drawPath(path = path, color = fillColor)
-                                drawPath(path = path, color = borderColor, style = Stroke(width = 3f))
                             }
                         }
 
