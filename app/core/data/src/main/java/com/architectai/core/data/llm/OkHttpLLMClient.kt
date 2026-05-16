@@ -25,8 +25,9 @@ import java.util.concurrent.TimeUnit
  * parses the JSON response into a [Composition]. Falls back gracefully on
  * parse errors.
  *
- * Uses [LLMConfig] to read baseUrl, apiKey, and modelName from SharedPreferences.
- * The config can be updated at runtime (e.g. from a settings screen).
+ * Supports reasoning models (e.g. nvidia/nemotron-3-nano-omni-30b-a3b-reasoning)
+ * that return content in the `reasoning` or `reasoning_content` fields instead of
+ * the standard `content` field.
  *
  * @param config The LLM configuration (baseUrl, apiKey, modelName).
  * @param client Pre-configured OkHttp client (can be shared via DI).
@@ -78,6 +79,8 @@ class OkHttpLLMClient(
                     .url("$baseUrl/chat/completions")
                     .addHeader("Authorization", "Bearer $apiKey")
                     .addHeader("Content-Type", "application/json")
+                    .addHeader("HTTP-Referer", "https://github.com/xarlord/block_builder")
+                    .addHeader("X-Title", "Block Builder")
                     .post(jsonBody.toRequestBody(JSON_MEDIA_TYPE))
                     .build()
 
@@ -107,7 +110,11 @@ class OkHttpLLMClient(
                     return@withContext LLMResult.Error("No choices in LLM response")
                 }
 
-                val content = chatResponse.choices[0].message.content
+                // Use getText() to handle reasoning models where content may be null
+                val content = chatResponse.choices[0].message.getText()
+                if (content.isNullOrBlank()) {
+                    return@withContext LLMResult.Error("Empty response from LLM (content was null)")
+                }
 
                 // Extract JSON from the content (LLM may wrap it in markdown code blocks)
                 val jsonContent = extractJsonFromContent(content)
@@ -149,7 +156,6 @@ class OkHttpLLMClient(
     fun buildSystemPrompt(): String {
         val catalogSection = if (templateCatalog.isNotBlank()) {
             """
-
 Available templates:
 $templateCatalog
 
@@ -253,14 +259,22 @@ IMPORTANT: Respond with ONLY the JSON object. No markdown code fences, no surrou
 data class OpenAIChatRequest(
     val model: String,
     val messages: List<OpenAIChatMessage>,
-    val temperature: Double = 0.4
+    val temperature: Double = 0.4,
+    @Json(name = "max_tokens")
+    val maxTokens: Int = 8192
 )
 
 @JsonClass(generateAdapter = true)
 data class OpenAIChatMessage(
     val role: String,
-    val content: String
-)
+    val content: String?,
+    @Json(name = "reasoning_content")
+    val reasoningContent: String? = null,
+    val reasoning: String? = null
+) {
+    /** Get the actual text content, falling back to reasoning fields for thinking models */
+    fun getText(): String? = content ?: reasoningContent ?: reasoning
+}
 
 @JsonClass(generateAdapter = true)
 data class OpenAIChatResponse(
