@@ -30,9 +30,9 @@ class OkHttpLLMClientTest {
         // Create a mock SharedPreferences that returns the server URL
         prefs = mockk(relaxed = true)
         val serverUrl = server.url("").toString().trimEnd('/')
-        every { prefs.getString("llm_base_url", "") } returns serverUrl
-        every { prefs.getString("llm_api_key", "") } returns "test-api-key"
-        every { prefs.getString("llm_model_name", "glm-4-flash") } returns "glm-4-flash"
+        every { prefs.getString("llm_base_url", any()) } returns serverUrl
+        every { prefs.getString("llm_api_key", any()) } returns "test-api-key"
+        every { prefs.getString("llm_model_name", any()) } returns "test-model"
 
         config = LLMConfig(prefs)
         client = OkHttpLLMClient(config = config)
@@ -162,9 +162,9 @@ class OkHttpLLMClientTest {
     fun generateComposition_notConfigured_returnsError() = kotlinx.coroutines.test.runTest {
         // Create config with empty values
         val emptyPrefs = mockk<android.content.SharedPreferences>(relaxed = true)
-        every { emptyPrefs.getString("llm_base_url", "") } returns ""
-        every { emptyPrefs.getString("llm_api_key", "") } returns ""
-        every { emptyPrefs.getString("llm_model_name", "glm-4-flash") } returns "glm-4-flash"
+        every { emptyPrefs.getString("llm_base_url", any()) } returns ""
+        every { emptyPrefs.getString("llm_api_key", any()) } returns ""
+        every { emptyPrefs.getString("llm_model_name", any()) } returns "test-model"
         val emptyConfig = LLMConfig(emptyPrefs)
         val unconfiguredClient = OkHttpLLMClient(config = emptyConfig)
 

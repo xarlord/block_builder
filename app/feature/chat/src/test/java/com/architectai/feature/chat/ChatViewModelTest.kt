@@ -70,7 +70,7 @@ class ChatViewModelTest {
         val prefsMap = mutableMapOf<String, String>(
             "llm_base_url" to "",
             "llm_api_key" to "",
-            "llm_model_name" to "glm-4-flash"
+            "llm_model_name" to "test-model"
         )
         val prefsEditor = mockk<SharedPreferences.Editor>(relaxed = true)
         every { prefsEditor.putString(any(), any()) } answers {
@@ -78,9 +78,9 @@ class ChatViewModelTest {
             prefsEditor
         }
         val prefs = mockk<SharedPreferences>(relaxed = true)
-        every { prefs.getString("llm_base_url", "") } answers { prefsMap["llm_base_url"] ?: "" }
-        every { prefs.getString("llm_api_key", "") } answers { prefsMap["llm_api_key"] ?: "" }
-        every { prefs.getString("llm_model_name", "glm-4-flash") } answers { prefsMap["llm_model_name"] ?: "glm-4-flash" }
+        every { prefs.getString("llm_base_url", any()) } answers { prefsMap["llm_base_url"] ?: "" }
+        every { prefs.getString("llm_api_key", any()) } answers { prefsMap["llm_api_key"] ?: "" }
+        every { prefs.getString("llm_model_name", any()) } answers { prefsMap["llm_model_name"] ?: "test-model" }
         every { prefs.edit() } returns prefsEditor
         llmConfig = LLMConfig(prefs)
 
@@ -359,7 +359,7 @@ class ChatViewModelTest {
         val (baseUrl, apiKey, model) = viewModel.getLlmConfig()
         assertEquals("", baseUrl)
         assertEquals("", apiKey)
-        assertEquals("glm-4-flash", model)
+        assertEquals("test-model", model)
     }
 
     @Test
