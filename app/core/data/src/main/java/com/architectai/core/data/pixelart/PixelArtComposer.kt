@@ -4,48 +4,70 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import com.architectai.core.domain.model.Composition
-import com.architectai.core.domain.model.TilePlacement
 import java.util.UUID
 
 /**
  * Orchestrates the image-to-pixel-art pipeline.
- *
- * Usage:
- *   val composer = PixelArtComposer(converter)
- *   val result = composer.composeFromImage(bitmap, "My House")
- *   // result is a Composition ready for the canvas
+ * Returns all intermediate debug data for visual inspection.
  */
 class PixelArtComposer(
     private val converter: ImageToTileGridConverter = ImageToTileGridConverter()
 ) {
 
     /**
-     * Convert a Bitmap to a Composition suitable for the Build canvas.
-     *
-     * @param bitmap Source image (any size)
-     * @param name Name for the composition
-     * @return A Composition with tiles placed on the 30×30 grid
+     * Full pipeline with debug outputs.
+     * Returns [PixelArtResult] with original, pixel art preview, tile grid, and composition.
      */
-    fun composeFromImage(bitmap: Bitmap, name: String = "Pixel Art"): Composition {
-        val result = converter.convertHighRes(bitmap, name)
-        return result.toComposition()
+    fun processImage(bitmap: Bitmap, name: String = "Pixel Art"): PixelArtResult {
+        val debug = converter.convertWithDebug(bitmap, name)
+        val composition = debug.toComposition()
+
+        return PixelArtResult(
+            originalBitmap = debug.originalBitmap,
+            pixelArtBitmap = debug.pixelArtBitmap,
+            tileGridBitmap = debug.tileGridBitmap,
+            composition = composition,
+            colorDistribution = debug.colorDistribution,
+            tileCount = debug.tiles.size,
+            objectName = debug.objectName
+        )
     }
 
     /**
-     * Convert a Uri to a Composition (loads bitmap from content resolver).
+     * Process from a content Uri.
      */
-    fun composeFromUri(context: Context, uri: Uri, name: String = "Pixel Art"): Composition? {
+    fun processFromUri(context: Context, uri: Uri, name: String = "Pixel Art"): PixelArtResult? {
         val bitmap = loadBitmapFromUri(context, uri) ?: return null
-        val composition = composeFromImage(bitmap, name)
-        bitmap.recycle()
-        return composition
+        val result = processImage(bitmap, name)
+        // Don't recycle original — we need it for debug display
+        return result
     }
 }
 
 /**
- * Extension to convert a ConversionResult to a domain Composition.
+ * Complete result of pixel art processing — includes all debug visuals.
  */
-fun ConversionResult.toComposition(): Composition {
+data class PixelArtResult(
+    /** Step 1: Original image */
+    val originalBitmap: Bitmap,
+    /** Step 2: Pixel art after downsampling + color quantization */
+    val pixelArtBitmap: Bitmap,
+    /** Step 3: Tile grid with type indicators */
+    val tileGridBitmap: Bitmap,
+    /** Final composition ready for canvas */
+    val composition: Composition,
+    /** Color distribution: which TileColor → count */
+    val colorDistribution: Map<com.architectai.core.domain.model.TileColor, Int>,
+    /** Total tile count */
+    val tileCount: Int,
+    /** Name of the object */
+    val objectName: String
+)
+
+/**
+ * Extension to convert a DebugConversionResult to a domain Composition.
+ */
+fun DebugConversionResult.toComposition(): Composition {
     val now = System.currentTimeMillis()
     return Composition(
         id = UUID.randomUUID().toString(),
@@ -57,9 +79,6 @@ fun ConversionResult.toComposition(): Composition {
     )
 }
 
-/**
- * Load a Bitmap from a content Uri.
- */
 private fun loadBitmapFromUri(context: Context, uri: Uri): Bitmap? {
     return try {
         val inputStream = context.contentResolver.openInputStream(uri) ?: return null

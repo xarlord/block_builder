@@ -35,7 +35,9 @@ data class ChatUiState(
     val generatedComposition: Composition? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isLlmConfigured: Boolean = false
+    val isLlmConfigured: Boolean = false,
+    /** Debug: pixel art processing result with intermediate bitmaps */
+    val pixelArtResult: com.architectai.core.data.pixelart.PixelArtResult? = null
 )
 
 @HiltViewModel
@@ -92,24 +94,25 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
-     * Generate a composition from an image using the pixel-art pipeline.
+     * Process an image through the pixel-art pipeline.
      * No LLM needed — pure local image processing.
      */
-    fun generateFromImage(composition: Composition) {
+    fun generateFromImage(result: com.architectai.core.data.pixelart.PixelArtResult) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
 
             try {
                 // Save the composition
-                compositionRepository.saveComposition(composition)
+                compositionRepository.saveComposition(result.composition)
 
-                // Update UI state
+                // Update UI state with debug data
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    generatedComposition = composition,
+                    generatedComposition = result.composition,
+                    pixelArtResult = result,
                     messages = _uiState.value.messages + listOf(
                         ChatMessage(
-                            text = "Generated pixel art: ${composition.name} (${composition.tiles.size} tiles)",
+                            text = "Generated pixel art: ${result.objectName} (${result.tileCount} tiles, ${result.colorDistribution.size} colors)",
                             isUser = false
                         )
                     )

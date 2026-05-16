@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,6 +33,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,8 +54,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -87,9 +92,9 @@ fun ChatScreen(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            val composition = pixelArtComposer.composeFromUri(context, it, "Pixel Art")
-            if (composition != null) {
-                viewModel.generateFromImage(composition)
+            val result = pixelArtComposer.processFromUri(context, it, "Pixel Art")
+            if (result != null) {
+                viewModel.generateFromImage(result)
             }
         }
     }
@@ -190,6 +195,16 @@ fun ChatScreen(
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                             )
                         }
+                    }
+                }
+
+                // Pixel Art Debug Card (3-panel pipeline view)
+                item {
+                    uiState.pixelArtResult?.let { result ->
+                        PixelArtDebugCard(
+                            result = result,
+                            onViewCanvas = { onNavigateToBuild(result.composition) }
+                        )
                     }
                 }
 
@@ -562,4 +577,172 @@ private fun ChatInputBar(
             )
         }
     }
+}
+
+/**
+ * 3-panel debug card showing the pixel art pipeline:
+ * 1. Original image (fetched/selected)
+ * 2. Pixel art after downsampling + color quantization
+ * 3. Tile grid with type indicators
+ * + "View on Canvas" button to place tiles
+ */
+@Composable
+private fun PixelArtDebugCard(
+    result: com.architectai.core.data.pixelart.PixelArtResult,
+    onViewCanvas: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A2E)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Title
+            Text(
+                text = "🎨 Pixel Art Pipeline — ${result.objectName}",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Stats bar
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "${result.tileCount} tiles",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF00D4FF)
+                )
+                Text(
+                    text = "${result.colorDistribution.size} colors",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF00D4FF)
+                )
+            }
+
+            HorizontalDivider(color = Color(0xFF333355))
+
+            // Panel 1: Original Image
+            Text(
+                text = "① Original Image",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFFAAAAFF)
+            )
+            Image(
+                bitmap = result.originalBitmap.asImageBitmap(),
+                contentDescription = "Original image",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF2A2A3E)),
+                contentScale = ContentScale.Fit
+            )
+
+            HorizontalDivider(color = Color(0xFF333355))
+
+            // Panel 2: Pixel Art (quantized)
+            Text(
+                text = "② Pixel Art (10×10 quantized)",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFFAAAAFF)
+            )
+            Image(
+                bitmap = result.pixelArtBitmap.asImageBitmap(),
+                contentDescription = "Pixel art preview",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF2A2A3E)),
+                contentScale = ContentScale.Fit
+            )
+
+            HorizontalDivider(color = Color(0xFF333355))
+
+            // Panel 3: Tile Grid
+            Text(
+                text = "③ Tile Grid (shapes + colors)",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFFAAAAFF)
+            )
+            Image(
+                bitmap = result.tileGridBitmap.asImageBitmap(),
+                contentDescription = "Tile grid preview",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF2A2A3E)),
+                contentScale = ContentScale.Fit
+            )
+
+            HorizontalDivider(color = Color(0xFF333355))
+
+            // Color distribution
+            Text(
+                text = "Color Distribution:",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFFAAAAFF)
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                result.colorDistribution.forEach { (color, count) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .background(Color(0xFF2A2A3E), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(parseTileColor(color), RoundedCornerShape(2.dp))
+                        )
+                        Text(
+                            text = "${color.displayName}: $count",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            // View on Canvas button
+            Button(
+                onClick = onViewCanvas,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    painter = painterResource(android.R.drawable.ic_menu_view),
+                    contentDescription = null,
+                    tint = Color.White
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("View on Canvas", color = Color.White)
+            }
+        }
+    }
+}
+
+/** Parse TileColor hex to Compose Color */
+private fun parseTileColor(tileColor: com.architectai.core.domain.model.TileColor): Color {
+    val hex = tileColor.hex.removePrefix("#")
+    return if (hex.length >= 6) {
+        Color(
+            red = hex.substring(0, 2).toInt(16) / 255f,
+            green = hex.substring(2, 4).toInt(16) / 255f,
+            blue = hex.substring(4, 6).toInt(16) / 255f
+        )
+    } else Color.White
 }
