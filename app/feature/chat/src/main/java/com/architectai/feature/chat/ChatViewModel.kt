@@ -92,6 +92,38 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
+     * Generate a composition from an image using the pixel-art pipeline.
+     * No LLM needed — pure local image processing.
+     */
+    fun generateFromImage(composition: Composition) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+
+            try {
+                // Save the composition
+                compositionRepository.saveComposition(composition)
+
+                // Update UI state
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    generatedComposition = composition,
+                    messages = _uiState.value.messages + listOf(
+                        ChatMessage(
+                            text = "Generated pixel art: ${composition.name} (${composition.tiles.size} tiles)",
+                            isUser = false
+                        )
+                    )
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "Failed to process image: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /**
      * Map of keywords to template IDs for fallback mode.
      * Used when LLM API is unavailable.
      */

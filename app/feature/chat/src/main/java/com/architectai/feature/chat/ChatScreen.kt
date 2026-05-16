@@ -1,5 +1,7 @@
 package com.architectai.feature.chat
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -52,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -76,6 +79,20 @@ fun ChatScreen(
     }
     val listState = rememberLazyListState()
     var showSettingsDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val pixelArtComposer = remember { com.architectai.core.data.pixelart.PixelArtComposer() }
+
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            val composition = pixelArtComposer.composeFromUri(context, it, "Pixel Art")
+            if (composition != null) {
+                viewModel.generateFromImage(composition)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -211,6 +228,9 @@ fun ChatScreen(
                         viewModel.sendMessage(text)
                         inputText = TextFieldValue("")
                     }
+                },
+                onPickImage = {
+                    imagePickerLauncher.launch("image/*")
                 },
                 enabled = !uiState.isLoading
             )
@@ -488,6 +508,7 @@ private fun ChatInputBar(
     value: TextFieldValue,
     onValueChange: (TextFieldValue) -> Unit,
     onSend: () -> Unit,
+    onPickImage: () -> Unit = {},
     enabled: Boolean
 ) {
     Row(
@@ -498,6 +519,20 @@ private fun ChatInputBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // Image picker button
+        IconButton(
+            onClick = onPickImage,
+            enabled = enabled,
+            modifier = Modifier.size(48.dp)
+        ) {
+            Icon(
+                painter = painterResource(android.R.drawable.ic_menu_gallery),
+                contentDescription = "Pick Image",
+                tint = if (enabled) Accent
+                    else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+            )
+        }
+
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
