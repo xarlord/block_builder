@@ -125,7 +125,7 @@ class ChatViewModelTest {
 
     @Test
     fun sendMessage_addsUserMessage() = runTest {
-        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
+        coEvery { llmClient.generateCompositionWithRetry(any()) } returns LLMResult.Error("No API")
 
         viewModel.sendMessage("Build a lion")
         advanceUntilIdle()
@@ -139,7 +139,7 @@ class ChatViewModelTest {
 
     @Test
     fun sendMessage_setsLoadingState_thenClears() = runTest {
-        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
+        coEvery { llmClient.generateCompositionWithRetry(any()) } returns LLMResult.Error("No API")
 
         viewModel.sendMessage("Test")
         // Loading is set synchronously before async processing
@@ -162,7 +162,7 @@ class ChatViewModelTest {
             updatedAt = System.currentTimeMillis(),
             source = Composition.Source.AI_GENERATED
         )
-        coEvery { llmClient.generateComposition("Build a house") } returns LLMResult.Success(testComposition)
+        coEvery { llmClient.generateCompositionWithRetry("Build a house") } returns LLMResult.Success(testComposition)
 
         viewModel.sendMessage("Build a house")
         advanceUntilIdle()
@@ -183,7 +183,7 @@ class ChatViewModelTest {
             updatedAt = 0,
             source = Composition.Source.AI_GENERATED
         )
-        coEvery { llmClient.generateComposition("house") } returns LLMResult.Success(testComposition)
+        coEvery { llmClient.generateCompositionWithRetry("house") } returns LLMResult.Success(testComposition)
 
         viewModel.sendMessage("house")
         advanceUntilIdle()
@@ -204,7 +204,7 @@ class ChatViewModelTest {
             updatedAt = 0,
             source = Composition.Source.AI_GENERATED
         )
-        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Success(testComposition)
+        coEvery { llmClient.generateCompositionWithRetry(any()) } returns LLMResult.Success(testComposition)
 
         viewModel.sendMessage("castle")
         advanceUntilIdle()
@@ -217,7 +217,7 @@ class ChatViewModelTest {
 
     @Test
     fun sendMessage_llmError_fallsBackToTemplateKeywordMatching() = runTest {
-        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
+        coEvery { llmClient.generateCompositionWithRetry(any()) } returns LLMResult.Error("No API")
 
         viewModel.sendMessage("I want a lion")
         advanceUntilIdle()
@@ -230,7 +230,7 @@ class ChatViewModelTest {
 
     @Test
     fun sendMessage_llmError_noKeywordMatch_showsSuggestion() = runTest {
-        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
+        coEvery { llmClient.generateCompositionWithRetry(any()) } returns LLMResult.Error("No API")
 
         viewModel.sendMessage("I want a zebra")
         advanceUntilIdle()
@@ -247,7 +247,7 @@ class ChatViewModelTest {
 
     @Test
     fun clearComposition_clearsGeneratedComposition() = runTest {
-        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
+        coEvery { llmClient.generateCompositionWithRetry(any()) } returns LLMResult.Error("No API")
 
         viewModel.sendMessage("lion")
         advanceUntilIdle()
@@ -268,7 +268,7 @@ class ChatViewModelTest {
 
     @Test
     fun sendMessage_multipleMessages_maintainsOrder() = runTest {
-        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
+        coEvery { llmClient.generateCompositionWithRetry(any()) } returns LLMResult.Error("No API")
 
         viewModel.sendMessage("lion")
         advanceUntilIdle()
@@ -285,7 +285,7 @@ class ChatViewModelTest {
 
     @Test
     fun sendMessage_keywordMapCoversTemplates() = runTest {
-        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
+        coEvery { llmClient.generateCompositionWithRetry(any()) } returns LLMResult.Error("No API")
 
         // Test keyword paths via template engine
         val testCases = mapOf(
@@ -319,7 +319,7 @@ class ChatViewModelTest {
 
     @Test
     fun sendMessage_templateKeywordMatchingUsesTemplateEngine() = runTest {
-        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
+        coEvery { llmClient.generateCompositionWithRetry(any()) } returns LLMResult.Error("No API")
 
         viewModel.sendMessage("cat")
         advanceUntilIdle()
@@ -331,7 +331,7 @@ class ChatViewModelTest {
 
     @Test
     fun sendMessage_fallbackReturnsTemplateComposition() = runTest {
-        coEvery { llmClient.generateComposition(any()) } returns LLMResult.Error("No API")
+        coEvery { llmClient.generateCompositionWithRetry(any()) } returns LLMResult.Error("No API")
 
         viewModel.sendMessage("lion")
         advanceUntilIdle()

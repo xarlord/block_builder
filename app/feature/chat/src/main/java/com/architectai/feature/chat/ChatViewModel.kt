@@ -35,7 +35,10 @@ data class ChatUiState(
     val generatedComposition: Composition? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isLlmConfigured: Boolean = false
+    val isLlmConfigured: Boolean = false,
+    val dslScript: String? = null,
+    val isDslEnabled: Boolean = false,
+    val dslError: String? = null
 )
 
 @HiltViewModel
@@ -88,7 +91,29 @@ class ChatViewModel @Inject constructor(
     }
 
     private fun updateConfigState() {
-        _uiState.value = _uiState.value.copy(isLlmConfigured = llmConfig.isConfigured)
+        _uiState.value = _uiState.value.copy(
+            isLlmConfigured = llmConfig.isConfigured,
+            isDslEnabled = llmConfig.dslEnabled
+        )
+    }
+
+    /** Update DSL mode enabled state. */
+    fun updateDslEnabled(enabled: Boolean) {
+        llmConfig.dslEnabled = enabled
+        updateConfigState()
+    }
+
+    /** Check if DSL mode is currently enabled. */
+    fun isDslEnabled(): Boolean = llmConfig.dslEnabled
+
+    /** Clear any stored DSL script. */
+    fun clearDslScript() {
+        _uiState.value = _uiState.value.copy(dslScript = null)
+    }
+
+    /** Clear any stored DSL error message. */
+    fun clearDslError() {
+        _uiState.value = _uiState.value.copy(dslError = null)
     }
 
     /**
@@ -140,12 +165,13 @@ class ChatViewModel @Inject constructor(
             messages = _uiState.value.messages + userMessage,
             isLoading = true,
             generatedComposition = null,
-            error = null
+            error = null,
+            dslError = null
         )
 
         viewModelScope.launch {
-            // Try real LLM API first (with template-based prompting)
-            val result = llmClient.generateComposition(text.trim())
+            // Try real LLM API first (with template-based prompting + DSL auto-retry)
+            val result = llmClient.generateCompositionWithRetry(text.trim())
 
             when (result) {
                 is LLMResult.Success -> {
@@ -165,8 +191,23 @@ class ChatViewModel @Inject constructor(
                     )
                 }
                 is LLMResult.Error -> {
-                    // Fall back to template engine with keyword matching
-                    handleTemplateFallback(text)
+                    // Capture DSL error for UI display if DSL mode is enabled
+                    if (llmConfig.dslEnabled) {
+                        _uiState.value = _uiState.value.copy(
+                            dslError = result.message.take(200)
+                        )
+                    }
+                    // Show the error directly instead of falling back to templates
+                    val errorMessage = ChatMessage(
+                        text = "⚠️ LLM Error: ${result.message.take(200)}\n\n" +
+                            "Please check your API configuration in Settings.",
+                        isUser = false
+                    )
+                    _uiState.value = _uiState.value.copy(
+                        messages = _uiState.value.messages + errorMessage,
+                        isLoading = false,
+                        error = result.message.take(200)
+                    )
                 }
             }
         }

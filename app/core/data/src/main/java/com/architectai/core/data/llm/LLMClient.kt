@@ -22,4 +22,11 @@ interface LLMClient {
      * @return LLMResult containing either a parsed Composition or an error.
      */
     suspend fun generateComposition(prompt: String): LLMResult
+
+    /**
+     * Generate with auto-retry on DSL parse failure.
+     * Default implementation just delegates to [generateComposition].
+     */
+    suspend fun generateCompositionWithRetry(prompt: String): LLMResult =
+        generateComposition(prompt)
 }

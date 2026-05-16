@@ -14,11 +14,11 @@ import android.content.SharedPreferences
 class LLMConfig(private val prefs: SharedPreferences) {
 
     var baseUrl: String
-        get() = prefs.getString(KEY_BASE_URL, "") ?: ""
+        get() = prefs.getString(KEY_BASE_URL, DEFAULT_BASE_URL) ?: DEFAULT_BASE_URL
         set(value) = prefs.edit().putString(KEY_BASE_URL, value).apply()
 
     var apiKey: String
-        get() = prefs.getString(KEY_API_KEY, "") ?: ""
+        get() = prefs.getString(KEY_API_KEY, DEFAULT_API_KEY) ?: DEFAULT_API_KEY
         set(value) = prefs.edit().putString(KEY_API_KEY, value).apply()
 
     var modelName: String
@@ -29,10 +29,18 @@ class LLMConfig(private val prefs: SharedPreferences) {
     val isConfigured: Boolean
         get() = baseUrl.isNotBlank() && apiKey.isNotBlank()
 
+    /** Whether DSL generation mode is enabled (default: true for new installs). */
+    var dslEnabled: Boolean
+        get() = prefs.getBoolean(KEY_DSL_ENABLED, true)
+        set(value) = prefs.edit().putBoolean(KEY_DSL_ENABLED, value).apply()
+
     companion object {
         private const val KEY_BASE_URL = "llm_base_url"
         private const val KEY_API_KEY = "llm_api_key"
         private const val KEY_MODEL_NAME = "llm_model_name"
+        private const val KEY_DSL_ENABLED = "llm_dsl_enabled"
         private const val DEFAULT_MODEL = "glm-4-flash"
+        private const val DEFAULT_BASE_URL = "https://api.z.ai/api/paas/v4"
+        private const val DEFAULT_API_KEY = "19034d857275451aaf5bd4c1f5f11c2a.m6TsNVKyyvfdzgkV"
     }
 }

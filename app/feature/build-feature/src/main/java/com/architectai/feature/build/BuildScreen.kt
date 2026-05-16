@@ -33,6 +33,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
@@ -96,6 +97,9 @@ fun BuildScreen(
 
     // Color for new tiles
     var selectedColorForNewTiles by remember { mutableStateOf(TileColor.RED) }
+
+    // Max tile count — user-adjustable
+    var maxTiles by remember { mutableStateOf(200) }
 
     // Show save confirmation as a snackbar
     uiState.saveConfirmation?.let { message ->
@@ -289,15 +293,54 @@ fun BuildScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "Total Tiles: ${canvasState.tiles.size}/200",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.semantics {
-                        contentDescription = "${canvasState.tiles.size} of 200 tiles placed"
-                        testTag = "tileCount"
+                // Tile count with adjustable max via slider
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Tiles: ${canvasState.tiles.size}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.semantics {
+                                contentDescription = "${canvasState.tiles.size} tiles placed"
+                                testTag = "tileCount"
+                            }
+                        )
+                        Text(
+                            text = "Max: $maxTiles",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = if (canvasState.tiles.size >= maxTiles) Accent
+                                else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                            modifier = Modifier.semantics {
+                                contentDescription = "Maximum $maxTiles tiles allowed"
+                                testTag = "maxTileCount"
+                            }
+                        )
                     }
-                )
+                    Slider(
+                        value = maxTiles.toFloat(),
+                        onValueChange = { maxTiles = it.toInt() },
+                        valueRange = 10f..200f,
+                        steps = (200 - 10) / 10 - 1, // steps at 20, 30, ..., 190
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { testTag = "maxTilesSlider" },
+                        enabled = canvasState.tiles.isEmpty(), // only adjust when canvas is empty
+                        colors = androidx.compose.material3.SliderDefaults.colors(
+                            activeTrackColor = Accent,
+                            thumbColor = Accent
+                        )
+                    )
+                    if (canvasState.tiles.isNotEmpty()) {
+                        Text(
+                            text = "Clear canvas to adjust max tiles",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+                        )
+                    }
+                }
 
                 // Rotation toolbar - show when a tile is selected
                 val selectedTile = canvasState.selectedTile
@@ -384,6 +427,7 @@ fun BuildScreen(
                             )
                         },
                         text = "Add Tile",
+                        enabled = canvasState.tiles.size < maxTiles,
                         modifier = Modifier
                             .weight(1f)
                             .semantics {

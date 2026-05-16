@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubbleOutline
 import androidx.compose.material.icons.filled.IosShare
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.PanTool
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -62,6 +63,11 @@ private val pages = listOf(
         icon = Icons.Default.IosShare,
         title = "Save & Share",
         description = "Save your creations and share them as images"
+    ),
+    OnboardingPage(
+        icon = Icons.Default.AutoAwesome,
+        title = "AI-Powered DSL",
+        description = "MagnaPy DSL generates complex tile structures with smart snap-to-edge assembly"
     )
 )
 

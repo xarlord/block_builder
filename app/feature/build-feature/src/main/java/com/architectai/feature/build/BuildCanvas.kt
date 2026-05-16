@@ -169,10 +169,15 @@ fun BuildCanvas(
                     onDragEnd = {
                         if (dragTileId != null) {
                             viewModel.endDrag()
-                            // --- Task 3: Enhanced haptics — CONFIRM for snap ---
-                            view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
-                            // Sound: tile placed
-                            soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.TILE_PLACE)
+                            // Check if the drop was rejected (overlap)
+                            if (uiState.lastDropRejected) {
+                                view.performHapticFeedback(HapticFeedbackConstants.REJECT)
+                                soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.TILE_REJECT)
+                                viewModel.clearDropRejected()
+                            } else {
+                                view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
+                                soundEffectPlayer.play(SoundEffectPlayer.SoundEffect.TILE_PLACE)
+                            }
                         }
                         dragTileId = null
                         isLongPressDrag = false

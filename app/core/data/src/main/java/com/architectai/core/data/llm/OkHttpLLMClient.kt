@@ -1,5 +1,11 @@
 package com.architectai.core.data.llm
 
+import com.architectai.core.data.dsl.DslLlmPromptBuilder
+import com.architectai.core.data.dsl.DslResponseParser
+import com.architectai.core.domain.dsl.DslError
+import com.architectai.core.domain.dsl.MagnaPyEvaluator
+import com.architectai.core.domain.dsl.MagnaPyLexer
+import com.architectai.core.domain.dsl.MagnaPyParser
 import com.architectai.core.domain.model.Composition
 import com.architectai.core.domain.model.Rotation
 import com.architectai.core.domain.model.TileColor
@@ -7,6 +13,7 @@ import com.architectai.core.domain.model.TilePlacement
 import com.architectai.core.domain.model.TileType
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
+import com.squareup.moshi.JsonReader
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +22,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okio.Buffer
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -47,6 +55,12 @@ class OkHttpLLMClient(
     /** The template catalog text, set by the TemplateEngine for LLM prompting */
     var templateCatalog: String = ""
 
+    /** DSL prompt builder for MagnaPy script generation mode */
+    private val dslPromptBuilder = DslLlmPromptBuilder()
+
+    /** DSL evaluator for converting scripts to Compositions */
+    private val dslEvaluator = MagnaPyEvaluator()
+
     override suspend fun generateComposition(prompt: String): LLMResult =
         withContext(Dispatchers.IO) {
             try {
@@ -61,18 +75,24 @@ class OkHttpLLMClient(
                     )
                 }
 
-                val systemPrompt = buildSystemPrompt()
+                val systemPrompt = if (config.dslEnabled) {
+                    dslPromptBuilder.buildSystemPrompt()
+                } else {
+                    buildSystemPrompt()
+                }
                 val chatRequest = OpenAIChatRequest(
                     model = modelName,
                     messages = listOf(
                         OpenAIChatMessage(role = "system", content = systemPrompt),
                         OpenAIChatMessage(role = "user", content = prompt)
                     ),
-                    temperature = 0.4
+                    temperature = if (config.dslEnabled) 0.3 else 0.4
                 )
 
                 val jsonBody = chatRequestAdapter.toJson(chatRequest)
                     ?: return@withContext LLMResult.Error("Failed to serialize request")
+
+                android.util.Log.d("LLMClient", "Request JSON: $jsonBody")
 
                 val request = Request.Builder()
                     .url("$baseUrl/chat/completions")
@@ -108,16 +128,40 @@ class OkHttpLLMClient(
                 }
 
                 val content = chatResponse.choices[0].message.content
+                android.util.Log.d("LLMClient", "Raw LLM content (${content.length} chars): ${content.take(200)}")
 
-                // Extract JSON from the content (LLM may wrap it in markdown code blocks)
-                val jsonContent = extractJsonFromContent(content)
+                // ── DSL-first parsing with JSON fallback ──────────────────
+                // Tier 1: Try DSL script extraction and evaluation
+                if (config.dslEnabled || DslResponseParser.looksLikeDsl(content)) {
+                    val dslScript = DslResponseParser.extractDslScript(content)
+                    android.util.Log.d("LLMClient", "Extracted DSL script (${dslScript?.length ?: 0} chars):\n${dslScript ?: "null"}")
+                    if (dslScript != null) {
+                        val attempt = tryParseDslDetailed(dslScript, prompt)
+                        android.util.Log.d("LLMClient", "DSL parse result: success=${attempt.success} error=${attempt.errorDetail} tiles=${attempt.composition?.tiles?.size}")
+                        if (attempt.success && attempt.composition != null) {
+                            return@withContext LLMResult.Success(attempt.composition)
+                        }
+                    }
+                    // DSL parsing failed — fall through to JSON
+                }
+
+                // Tier 2: Try legacy JSON parsing
+                var jsonContent = extractJsonFromContent(content)
+
+                // Sanitize common LLM JSON issues before parsing
+                jsonContent = sanitizeJson(jsonContent)
 
                 // Parse the composition JSON from the LLM's message content
+                // Use lenient parsing — LLMs often produce slightly malformed JSON
+                // (trailing commas, comments, unescaped control chars, etc.)
                 val compositionResponse = try {
-                    compositionResponseAdapter.fromJson(jsonContent)
+                    val buffer = Buffer().writeUtf8(jsonContent)
+                    val reader = JsonReader.of(buffer)
+                    reader.isLenient = true
+                    compositionResponseAdapter.fromJson(reader)
                 } catch (e: Exception) {
                     return@withContext LLMResult.Error(
-                        "Failed to parse composition from LLM output: ${e.message}\nContent: ${content.take(300)}", e
+                        "Failed to parse composition from LLM output: ${e.message}\nRaw content (first 500 chars): ${content.take(500)}", e
                     )
                 }
 
@@ -138,6 +182,149 @@ class OkHttpLLMClient(
                 LLMResult.Error(
                     "Network error: ${e.message}", e
                 )
+            }
+        }
+
+    /**
+     * Detailed result of a DSL parse attempt, used for auto-retry and error reporting.
+     */
+    data class DslParseAttempt(
+        val script: String,
+        val success: Boolean,
+        val errorDetail: String? = null,  // DslError.displayMessage if failed
+        val composition: Composition? = null  // if success
+    )
+
+    /**
+     * Attempt to parse and evaluate a DSL script, returning detailed error info.
+     * Captures [DslError.displayMessage] at each pipeline stage for retry feedback.
+     */
+    internal fun tryParseDslDetailed(script: String, prompt: String): DslParseAttempt {
+        return try {
+            val tokens = MagnaPyLexer(script).tokenize()
+
+            val ast = MagnaPyParser(tokens).parse().getOrElse { err ->
+                val msg = (err as? DslError)?.displayMessage ?: err.message ?: "Parse error"
+                return DslParseAttempt(script, success = false, errorDetail = msg)
+            }
+
+            val tiles = dslEvaluator.evaluate(ast).getOrElse { err ->
+                val msg = (err as? DslError)?.displayMessage ?: err.message ?: "Evaluation error"
+                return DslParseAttempt(script, success = false, errorDetail = msg)
+            }
+
+            if (tiles.isEmpty()) {
+                return DslParseAttempt(script, success = false, errorDetail = "DSL produced no tiles")
+            }
+
+            // Extract design name from first comment line or use prompt
+            val designName = script.lines()
+                .firstOrNull { it.trimStart().startsWith("//") }
+                ?.removePrefix("//")
+                ?.trim()
+                ?.removePrefix("Design:")
+                ?.trim()
+                ?: prompt.take(50)
+
+            val now = System.currentTimeMillis()
+            val composition = Composition(
+                id = UUID.randomUUID().toString(),
+                name = designName,
+                tiles = tiles,
+                createdAt = now,
+                updatedAt = now,
+                source = Composition.Source.AI_GENERATED
+            )
+            DslParseAttempt(script, success = true, composition = composition)
+        } catch (e: Exception) {
+            val msg = (e as? DslError)?.displayMessage ?: e.message ?: "Unknown DSL error"
+            DslParseAttempt(script, success = false, errorDetail = msg)
+        }
+    }
+
+    /**
+     * Attempt to parse and evaluate a DSL script into a Composition.
+     * Returns null if parsing/evaluation fails (caller should fall back to JSON).
+     * Backward-compatible wrapper around [tryParseDslDetailed].
+     */
+    internal fun tryParseDsl(script: String, prompt: String): LLMResult? {
+        val attempt = tryParseDslDetailed(script, prompt)
+        return if (attempt.success && attempt.composition != null) {
+            LLMResult.Success(attempt.composition)
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Generate a composition with DSL auto-retry. If DSL parsing fails on the first attempt,
+     * sends the error back to the LLM for a corrected script. Max 1 retry.
+     */
+    override suspend fun generateCompositionWithRetry(prompt: String): LLMResult =
+        withContext(Dispatchers.IO) {
+            val firstResult = generateComposition(prompt)
+            if (firstResult is LLMResult.Success) return@withContext firstResult
+
+            // Only retry in DSL mode
+            if (!config.dslEnabled) return@withContext firstResult
+
+            // Try retry with error context
+            try {
+                val baseUrl = config.baseUrl.trimEnd('/')
+                val apiKey = config.apiKey
+                val modelName = config.modelName
+                if (baseUrl.isBlank() || apiKey.isBlank()) return@withContext firstResult
+
+                val systemPrompt = dslPromptBuilder.buildSystemPrompt()
+                val errorMsg = (firstResult as? LLMResult.Error)?.message ?: "Unknown error"
+
+                val retryMessages = listOf(
+                    OpenAIChatMessage(role = "system", content = systemPrompt),
+                    OpenAIChatMessage(role = "user", content = prompt),
+                    OpenAIChatMessage(role = "assistant", content = "I'll generate a MagnaPy DSL script."),
+                    OpenAIChatMessage(
+                        role = "user",
+                        content = "Your previous DSL script failed with this error:\n$errorMsg\n\n" +
+                            "Please fix the error and return a corrected ```kotlin script."
+                    )
+                )
+
+                val chatRequest = OpenAIChatRequest(
+                    model = modelName,
+                    messages = retryMessages,
+                    temperature = 0.2  // Lower temp for retry
+                )
+
+                val jsonBody = chatRequestAdapter.toJson(chatRequest)
+                    ?: return@withContext firstResult
+
+                val request = Request.Builder()
+                    .url("$baseUrl/chat/completions")
+                    .addHeader("Authorization", "Bearer $apiKey")
+                    .addHeader("Content-Type", "application/json")
+                    .post(jsonBody.toRequestBody(JSON_MEDIA_TYPE))
+                    .build()
+
+                val response = client.newCall(request).execute()
+                if (!response.isSuccessful) return@withContext firstResult
+
+                val responseBody = response.body?.string() ?: return@withContext firstResult
+                val chatResponse = chatResponseAdapter.fromJson(responseBody)
+                    ?: return@withContext firstResult
+                if (chatResponse.choices.isEmpty()) return@withContext firstResult
+
+                val content = chatResponse.choices[0].message.content
+                val dslScript = DslResponseParser.extractDslScript(content)
+                    ?: return@withContext firstResult
+                val dslAttempt = tryParseDslDetailed(dslScript, prompt)
+
+                if (dslAttempt.success && dslAttempt.composition != null) {
+                    LLMResult.Success(dslAttempt.composition)
+                } else {
+                    firstResult // Return original error, not retry error
+                }
+            } catch (_: Exception) {
+                firstResult // On any retry failure, return original result
             }
         }
 
@@ -203,10 +390,31 @@ IMPORTANT: Respond with ONLY the JSON object. No markdown code fences, no surrou
     }
 
     /**
-     * Extract JSON from LLM content that may be wrapped in markdown code blocks.
+     * Sanitize JSON string to handle common LLM output issues.
+     * - Remove trailing commas before } or ]
+     * - Remove single-line comments (// ...)
+     * - Remove multi-line comments (/* ... */)
+     */
+    internal fun sanitizeJson(json: String): String {
+        var sanitized = json
+        // Remove JS-style single-line comments
+        sanitized = sanitized.replace(Regex("//[^\\n]*"), "")
+        // Remove JS-style multi-line comments
+        sanitized = sanitized.replace(Regex("/\\*[\\s\\S]*?\\*/"), "")
+        // Remove trailing commas before } or ]
+        sanitized = sanitized.replace(Regex(",\\s*([}\\]])"), "$1")
+        return sanitized.trim()
+    }
+
+    /**
+     * Extract JSON from LLM content that may be wrapped in markdown code blocks
+     * or surrounded by explanatory text.
      */
     internal fun extractJsonFromContent(content: String): String {
-        val trimmed = content.trim()
+        var trimmed = content.trim()
+
+        // Strip control characters that confuse JSON parsers
+        trimmed = trimmed.replace(Regex("[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]"), "")
 
         // Try to extract from markdown code blocks: ```json ... ``` or ``` ... ```
         val codeBlockRegex = Regex("```(?:json)?\\s*\\n?([\\s\\S]*?)\\n?```")
@@ -215,7 +423,7 @@ IMPORTANT: Respond with ONLY the JSON object. No markdown code fences, no surrou
             return codeBlockMatch.groupValues[1].trim()
         }
 
-        // Try to find a JSON object (first { to last })
+        // Try to find a JSON object (first { to matching last })
         val startIndex = trimmed.indexOf('{')
         val endIndex = trimmed.lastIndexOf('}')
         if (startIndex >= 0 && endIndex > startIndex) {
@@ -228,7 +436,10 @@ IMPORTANT: Respond with ONLY the JSON object. No markdown code fences, no surrou
 
     internal fun parseResponse(json: String): LLMResult {
         return try {
-            val compositionResponse = compositionResponseAdapter.fromJson(json)
+            val buffer = Buffer().writeUtf8(json)
+            val reader = JsonReader.of(buffer)
+            reader.isLenient = true
+            val compositionResponse = compositionResponseAdapter.fromJson(reader)
                 ?: return LLMResult.Error("Null response after parsing")
             LLMResult.Success(compositionResponse.toComposition())
         } catch (e: Exception) {
@@ -253,7 +464,9 @@ IMPORTANT: Respond with ONLY the JSON object. No markdown code fences, no surrou
 data class OpenAIChatRequest(
     val model: String,
     val messages: List<OpenAIChatMessage>,
-    val temperature: Double = 0.4
+    val temperature: Double = 0.4,
+    @Json(name = "max_tokens")
+    val maxTokens: Int = 4096
 )
 
 @JsonClass(generateAdapter = true)

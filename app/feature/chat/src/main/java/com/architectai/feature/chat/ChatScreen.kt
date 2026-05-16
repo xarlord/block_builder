@@ -23,6 +23,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,6 +40,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -51,10 +54,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -176,12 +183,61 @@ fun ChatScreen(
                     }
                 }
 
+                // DSL error banner — only show when fallback also failed
+                item {
+                    if (uiState.generatedComposition == null) {
+                        uiState.dslError?.let { errorMsg ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFFFF3E0)
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "⚠️ DSL script had an issue",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = Color(0xFFE65100)
+                                    )
+                                    Text(
+                                        text = "DSL generation failed. Check your API config or try rephrasing.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFFBF360C).copy(alpha = 0.7f)
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { viewModel.clearDslError() },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(
+                                        painter = painterResource(android.R.drawable.ic_menu_close_clear_cancel),
+                                        contentDescription = "Dismiss",
+                                        tint = Color(0xFFBF360C),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    }
+                }
+
                 // Generated composition card
                 item {
                     uiState.generatedComposition?.let { composition ->
                         CompositionResultCard(
                             composition = composition,
-                            onViewCanvas = { onNavigateToBuild(composition) }
+                            onViewCanvas = { onNavigateToBuild(composition) },
+                            isDslEnabled = uiState.isDslEnabled
                         )
                     }
                 }
@@ -275,6 +331,7 @@ private fun LlmSettingsDialog(
     var baseUrl by remember { mutableStateOf(currentBaseUrl) }
     var apiKey by remember { mutableStateOf(currentApiKey) }
     var modelName by remember { mutableStateOf(currentModel) }
+    var dslEnabled by remember { mutableStateOf(viewModel.isDslEnabled()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -290,6 +347,32 @@ private fun LlmSettingsDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                 )
+
+                // DSL Mode toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "DSL Mode",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            "Use MagnaPy DSL for structured generation",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        )
+                    }
+                    Switch(
+                        checked = dslEnabled,
+                        onCheckedChange = { enabled ->
+                            dslEnabled = enabled
+                            viewModel.updateDslEnabled(enabled)
+                        }
+                    )
+                }
 
                 OutlinedTextField(
                     value = baseUrl,
@@ -380,7 +463,8 @@ private fun ChatBubble(
 @Composable
 private fun CompositionResultCard(
     composition: Composition,
-    onViewCanvas: () -> Unit
+    onViewCanvas: () -> Unit,
+    isDslEnabled: Boolean = false
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -392,11 +476,29 @@ private fun CompositionResultCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = composition.name,
-                style = MaterialTheme.typography.titleMedium,
-                color = Header
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = composition.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Header
+                )
+                if (isDslEnabled) {
+                    androidx.compose.material3.Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Accent.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = "DSL",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Accent
+                        )
+                    }
+                }
+            }
             Text(
                 text = "${composition.tiles.size} tiles • ${composition.tiles.map { it.tileType }.distinct().size} types",
                 style = MaterialTheme.typography.bodySmall,
@@ -490,6 +592,9 @@ private fun ChatInputBar(
     onSend: () -> Unit,
     enabled: Boolean
 ) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -501,7 +606,9 @@ private fun ChatInputBar(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(focusRequester),
             placeholder = {
                 Text(
                     "Describe what to build...",
@@ -511,11 +618,25 @@ private fun ChatInputBar(
             shape = RoundedCornerShape(24.dp),
             maxLines = 3,
             enabled = enabled,
-            textStyle = MaterialTheme.typography.bodyMedium
+            textStyle = MaterialTheme.typography.bodyMedium,
+            keyboardOptions = KeyboardOptions(
+                imeAction = ImeAction.Send
+            ),
+            keyboardActions = KeyboardActions(
+                onSend = {
+                    if (value.text.isNotBlank()) {
+                        onSend()
+                    }
+                }
+            )
         )
 
         IconButton(
-            onClick = onSend,
+            onClick = {
+                onSend()
+                // Re-request focus after sending so keyboard stays up
+                focusRequester.requestFocus()
+            },
             enabled = enabled && value.text.isNotBlank(),
             modifier = Modifier.size(48.dp)
         ) {

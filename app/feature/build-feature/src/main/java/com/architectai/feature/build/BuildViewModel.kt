@@ -37,7 +37,8 @@ data class BuildUiState(
     val error: String? = null,
     val saveConfirmation: String? = null,
     val canUndo: Boolean = false,
-    val canRedo: Boolean = false
+    val canRedo: Boolean = false,
+    val lastDropRejected: Boolean = false
 )
 
 @HiltViewModel
@@ -235,6 +236,7 @@ class BuildViewModel @Inject constructor(
      * End drag with snap-to-grid logic.
      * Snaps the tile to the nearest grid position where 1 grid unit = 10dp
      * (which is GRID_UNIT_DP / 3 since each tile is 3 units wide).
+     * Rejects the drop if it would overlap another tile.
      */
     fun endDrag() {
         viewModelScope.launch {
@@ -257,8 +259,22 @@ class BuildViewModel @Inject constructor(
                 val gridX = (snapPosition.x / GRID_UNIT_DP).toInt().coerceIn(0, canvasState.gridSize - tile.placement.tileType.widthUnits)
                 val gridY = (snapPosition.y / GRID_UNIT_DP).toInt().coerceIn(0, canvasState.gridSize - tile.placement.tileType.heightUnits)
 
-                // Only record move action if tile actually moved
-                if (gridX != dragStartX || gridY != dragStartY) {
+                // Check for overlap with other tiles at the target position
+                val targetPlacement = tile.placement.copy(x = gridX, y = gridY)
+                val hasOverlap = canvasState.tiles
+                    .filter { it.id != tileId } // exclude the tile being dragged
+                    .any { otherTile ->
+                        tilesOverlap(targetPlacement, otherTile.placement)
+                    }
+
+                if (hasOverlap) {
+                    // Reject: snap back to original position (no move action recorded)
+                    _uiState.value = _uiState.value.copy(
+                        dragState = DragState(),
+                        lastDropRejected = true
+                    )
+                } else if (gridX != dragStartX || gridY != dragStartY) {
+                    // Only record move action if tile actually moved
                     val moveAction = CanvasAction.MoveTile(
                         tileId = tileId,
                         fromX = dragStartX,
@@ -293,6 +309,26 @@ class BuildViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(dragState = DragState())
             }
         }
+    }
+
+    /**
+     * Check if two tile placements overlap using axis-aligned bounding box (AABB).
+     * For squares this is exact; for triangles this is a conservative check.
+     */
+    private fun tilesOverlap(a: TilePlacement, b: TilePlacement): Boolean {
+        val aLeft = a.x
+        val aRight = a.x + a.tileType.widthUnits
+        val aTop = a.y
+        val aBottom = a.y + a.tileType.heightUnits
+
+        val bLeft = b.x
+        val bRight = b.x + b.tileType.widthUnits
+        val bTop = b.y
+        val bBottom = b.y + b.tileType.heightUnits
+
+        // AABB overlap test — two rectangles DON'T overlap if one is completely
+        // to the left/right/above/below the other
+        return !(aRight <= bLeft || bRight <= aLeft || aBottom <= bTop || bBottom <= aTop)
     }
 
     /**
@@ -374,6 +410,10 @@ class BuildViewModel @Inject constructor(
 
     fun clearSaveConfirmation() {
         _uiState.value = _uiState.value.copy(saveConfirmation = null)
+    }
+
+    fun clearDropRejected() {
+        _uiState.value = _uiState.value.copy(lastDropRejected = false)
     }
 
     // ─── Share / Export / Import ────────────────────────────────────
