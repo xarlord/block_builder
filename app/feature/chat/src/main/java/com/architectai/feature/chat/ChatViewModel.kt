@@ -35,7 +35,11 @@ data class ChatUiState(
     val generatedComposition: Composition? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isLlmConfigured: Boolean = false
+    val isLlmConfigured: Boolean = false,
+    /** Debug: pixel art processing result with intermediate bitmaps */
+    val pixelArtResult: com.architectai.core.data.pixelart.PixelArtResult? = null,
+    /** Loading state specifically for image processing */
+    val isImageProcessing: Boolean = false
 )
 
 @HiltViewModel
@@ -92,6 +96,48 @@ class ChatViewModel @Inject constructor(
     }
 
     /**
+     * Process an image through the pixel-art pipeline.
+     * No LLM needed — pure local image processing.
+     */
+    fun generateFromImage(result: com.architectai.core.data.pixelart.PixelArtResult) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, isImageProcessing = false)
+
+            try {
+                // Save the composition
+                compositionRepository.saveComposition(result.composition)
+
+                // Update UI state with debug data
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    generatedComposition = result.composition,
+                    pixelArtResult = result,
+                    messages = _uiState.value.messages + listOf(
+                        ChatMessage(
+                            text = "Generated pixel art: ${result.objectName} (${result.tileCount} tiles, ${result.colorDistribution.size} colors)",
+                            isUser = false
+                        )
+                    )
+                )
+            } catch (e: Exception) {
+                // Still show pixel art debug card even if saving fails
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    generatedComposition = result.composition,
+                    pixelArtResult = result,
+                    error = "Saved locally only: ${e.message}",
+                    messages = _uiState.value.messages + listOf(
+                        ChatMessage(
+                            text = "Generated pixel art: ${result.objectName} (${result.tileCount} tiles) — preview ready",
+                            isUser = false
+                        )
+                    )
+                )
+            }
+        }
+    }
+
+    /**
      * Map of keywords to template IDs for fallback mode.
      * Used when LLM API is unavailable.
      */
@@ -140,6 +186,7 @@ class ChatViewModel @Inject constructor(
             messages = _uiState.value.messages + userMessage,
             isLoading = true,
             generatedComposition = null,
+            pixelArtResult = null,
             error = null
         )
 
@@ -317,6 +364,25 @@ class ChatViewModel @Inject constructor(
 
     fun clearComposition() {
         _uiState.value = _uiState.value.copy(generatedComposition = null)
+    }
+
+    /** Called when user picks an image — show loading spinner */
+    fun setImageProcessing(processing: Boolean) {
+        _uiState.value = _uiState.value.copy(isImageProcessing = processing)
+    }
+
+    /** Called when image processing fails — show error to user */
+    fun setImageProcessingError(message: String) {
+        _uiState.value = _uiState.value.copy(
+            isImageProcessing = false,
+            error = message,
+            messages = _uiState.value.messages + listOf(
+                ChatMessage(
+                    text = "⚠️ $message",
+                    isUser = false
+                )
+            )
+        )
     }
 
     fun getQuickSuggestions(): List<String> {

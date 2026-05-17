@@ -97,7 +97,7 @@ private fun MainAppContent(
                 }
             }
         }
-    ) { _ ->
+    ) { outerPadding ->
         when (TabDestination.entries[selectedTabIndex]) {
             TabDestination.CHAT -> ChatScreen(
                 viewModel = chatViewModel,
@@ -105,7 +105,39 @@ private fun MainAppContent(
                     pendingComposition = composition
                     selectedTabIndex = TabDestination.BUILD.ordinal
                 },
-                onShowHelp = { showHelpDialog = true }
+                onShowHelp = { showHelpDialog = true },
+                contentPadding = outerPadding,
+                onDebugTestImage = {
+                    // Generate a test bitmap and process it through the pixel art pipeline
+                    val composer = com.architectai.core.data.pixelart.PixelArtComposer()
+                    val bmp = android.graphics.Bitmap.createBitmap(200, 200, android.graphics.Bitmap.Config.ARGB_8888)
+                    // Paint a colorful test pattern
+                    val canvas = android.graphics.Canvas(bmp)
+                    val colors = intArrayOf(
+                        android.graphics.Color.RED, android.graphics.Color.BLUE,
+                        android.graphics.Color.GREEN, android.graphics.Color.YELLOW,
+                        android.graphics.Color.CYAN, android.graphics.Color.MAGENTA
+                    )
+                    val cellSize = 200 / 3
+                    for (row in 0 until 3) {
+                        for (col in 0 until 3) {
+                            val paint = android.graphics.Paint()
+                            paint.color = colors[(row * 3 + col) % colors.size]
+                            canvas.drawRect(
+                                (col * cellSize).toFloat(), (row * cellSize).toFloat(),
+                                ((col + 1) * cellSize).toFloat(), ((row + 1) * cellSize).toFloat(),
+                                paint
+                            )
+                        }
+                    }
+                    // Add a circle
+                    val circlePaint = android.graphics.Paint()
+                    circlePaint.color = android.graphics.Color.WHITE
+                    canvas.drawCircle(100f, 100f, 40f, circlePaint)
+                    
+                    val result = composer.processImage(bmp, "Test Pattern")
+                    chatViewModel.generateFromImage(result)
+                }
             )
             TabDestination.BUILD -> BuildScreen(
                 viewModel = sharedBuildViewModel

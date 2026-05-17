@@ -1,9 +1,13 @@
 package com.architectai.feature.chat
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +34,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,16 +47,23 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -68,7 +80,9 @@ import com.architectai.core.domain.model.Composition
 fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
     onNavigateToBuild: (Composition) -> Unit = {},
-    onShowHelp: () -> Unit = {}
+    onShowHelp: () -> Unit = {},
+    contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.foundation.layout.PaddingValues(0.dp),
+    onDebugTestImage: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var inputText by rememberSaveable(stateSaver = TextFieldValue.Saver) {
@@ -76,6 +90,38 @@ fun ChatScreen(
     }
     val listState = rememberLazyListState()
     var showSettingsDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val pixelArtComposer = remember { com.architectai.core.data.pixelart.PixelArtComposer() }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Image picker launcher
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { pickedUri ->
+            android.util.Log.d("PixelArt", "Image picked: $pickedUri")
+            // Show loading immediately
+            viewModel.setImageProcessing(true)
+            // Process bitmap on IO thread to avoid blocking main thread
+            coroutineScope.launch {
+                try {
+                    val result = withContext(Dispatchers.IO) {
+                        pixelArtComposer.processFromUri(context, pickedUri, "Pixel Art")
+                    }
+                    if (result != null) {
+                        android.util.Log.d("PixelArt", "Pipeline success: ${result.tileCount} tiles")
+                        viewModel.generateFromImage(result)
+                    } else {
+                        android.util.Log.e("PixelArt", "processFromUri returned null — bitmap decode failed")
+                        viewModel.setImageProcessingError("Failed to load image. Try a different photo.")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("PixelArt", "Pipeline error", e)
+                    viewModel.setImageProcessingError("Image processing failed: ${e.message}")
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -109,10 +155,18 @@ fun ChatScreen(
             )
         }
     ) { paddingValues ->
+        // Auto-scroll to bottom when new content arrives (pixel art result, composition, or messages)
+        LaunchedEffect(uiState.pixelArtResult, uiState.generatedComposition, uiState.messages.size) {
+            if (uiState.pixelArtResult != null || uiState.generatedComposition != null) {
+                listState.animateScrollToItem(listState.layoutInfo.totalItemsCount - 1)
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .padding(bottom = contentPadding.calculateBottomPadding())
                 .background(Background)
                 .imePadding()
         ) {
@@ -176,6 +230,62 @@ fun ChatScreen(
                     }
                 }
 
+                // Image processing loading indicator
+                item {
+                    AnimatedVisibility(
+                        visible = uiState.isImageProcessing,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = Accent
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Processing image...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+
+                // Error display
+                item {
+                    uiState.error?.let { errorMsg ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFFFEBEE)
+                            )
+                        ) {
+                            Text(
+                                text = "⚠️ $errorMsg",
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFC62828)
+                            )
+                        }
+                    }
+                }
+
+                // Pixel Art Debug Card (3-panel pipeline view)
+                item {
+                    uiState.pixelArtResult?.let { result ->
+                        PixelArtDebugCard(
+                            result = result,
+                            onViewCanvas = { onNavigateToBuild(result.composition) }
+                        )
+                    }
+                }
+
                 // Generated composition card
                 item {
                     uiState.generatedComposition?.let { composition ->
@@ -212,6 +322,10 @@ fun ChatScreen(
                         inputText = TextFieldValue("")
                     }
                 },
+                onPickImage = {
+                    imagePickerLauncher.launch("image/*")
+                },
+                onDebugTestImage = onDebugTestImage,
                 enabled = !uiState.isLoading
             )
         }
@@ -488,6 +602,8 @@ private fun ChatInputBar(
     value: TextFieldValue,
     onValueChange: (TextFieldValue) -> Unit,
     onSend: () -> Unit,
+    onPickImage: () -> Unit = {},
+    onDebugTestImage: (() -> Unit)? = null,
     enabled: Boolean
 ) {
     Row(
@@ -498,6 +614,30 @@ private fun ChatInputBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // Image picker button (long-press for debug test image)
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .then(
+                    if (onDebugTestImage != null) {
+                        Modifier.combinedClickable(
+                            onClick = onPickImage,
+                            onLongClick = { onDebugTestImage() }
+                        )
+                    } else {
+                        Modifier.clickable(onClick = onPickImage)
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(android.R.drawable.ic_menu_gallery),
+                contentDescription = "Pick Image",
+                tint = if (enabled) Accent
+                    else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
+            )
+        }
+
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
@@ -527,4 +667,188 @@ private fun ChatInputBar(
             )
         }
     }
+}
+
+/**
+ * 3-panel debug card showing the pixel art pipeline:
+ * 1. Original image (fetched/selected)
+ * 2. Pixel art after downsampling + color quantization
+ * 3. Tile grid with type indicators
+ * + "View on Canvas" button to place tiles
+ */
+@Composable
+private fun PixelArtDebugCard(
+    result: com.architectai.core.data.pixelart.PixelArtResult,
+    onViewCanvas: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1A2E)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Title
+            Text(
+                text = "🎨 Pixel Art Pipeline — ${result.objectName}",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+
+            // Stats bar
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "${result.tileCount} tiles",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF00D4FF)
+                )
+                Text(
+                    text = "${result.colorDistribution.size} colors",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF00D4FF)
+                )
+            }
+
+            HorizontalDivider(color = Color(0xFF333355))
+
+            // Panel 1: Original Image
+            Text(
+                text = "① Original Image",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFFAAAAFF)
+            )
+            BitmapPanel(bitmap = result.originalBitmap, label = "original")
+
+            HorizontalDivider(color = Color(0xFF333355))
+
+            // Panel 2: Pixel Art (quantized)
+            Text(
+                text = "② Pixel Art (10×10 quantized)",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFFAAAAFF)
+            )
+            BitmapPanel(bitmap = result.pixelArtBitmap, label = "pixelArt")
+
+            HorizontalDivider(color = Color(0xFF333355))
+
+            // Panel 3: Tile Grid
+            Text(
+                text = "③ Tile Grid (shapes + colors)",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFFAAAAFF)
+            )
+            BitmapPanel(bitmap = result.tileGridBitmap, label = "tileGrid")
+
+            HorizontalDivider(color = Color(0xFF333355))
+
+            // Color distribution
+            Text(
+                text = "Color Distribution:",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFFAAAAFF)
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                result.colorDistribution.forEach { (color, count) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .background(Color(0xFF2A2A3E), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(parseTileColor(color), RoundedCornerShape(2.dp))
+                        )
+                        Text(
+                            text = "${color.displayName}: $count",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            // View on Canvas button
+            Button(
+                onClick = onViewCanvas,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Accent),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(
+                    painter = painterResource(android.R.drawable.ic_menu_view),
+                    contentDescription = null,
+                    tint = Color.White
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("View on Canvas", color = Color.White)
+            }
+        }
+    }
+}
+
+/**
+ * Reliable bitmap panel using native AndroidView + ImageView.
+ * Falls back to error text if bitmap is recycled or invalid.
+ */
+@Composable
+private fun BitmapPanel(bitmap: android.graphics.Bitmap, label: String) {
+    val isRecycled = bitmap.isRecycled
+    val sizeInfo = "${bitmap.width}×${bitmap.height}"
+
+    if (isRecycled) {
+        // Show error state instead of crashing
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(150.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF2A2A3E)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "⚠️ Bitmap recycled ($label)",
+                color = Color(0xFFFF6B6B),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    } else {
+        androidx.compose.ui.viewinterop.AndroidView(
+            factory = { ctx ->
+                android.widget.ImageView(ctx).apply {
+                    scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                    setImageBitmap(bitmap)
+                    setBackgroundColor(0xFF2A2A3E.toInt())
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(150.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF2A2A3E))
+        )
+    }
+}
+
+/** Parse TileColor hex to Compose Color */
+private fun parseTileColor(tileColor: com.architectai.core.domain.model.TileColor): Color {
+    val hex = tileColor.hex.removePrefix("#")
+    return if (hex.length >= 6) {
+        Color(
+            red = hex.substring(0, 2).toInt(16) / 255f,
+            green = hex.substring(2, 4).toInt(16) / 255f,
+            blue = hex.substring(4, 6).toInt(16) / 255f
+        )
+    } else Color.White
 }
