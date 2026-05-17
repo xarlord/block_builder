@@ -6,6 +6,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -78,7 +80,9 @@ import com.architectai.core.domain.model.Composition
 fun ChatScreen(
     viewModel: ChatViewModel = hiltViewModel(),
     onNavigateToBuild: (Composition) -> Unit = {},
-    onShowHelp: () -> Unit = {}
+    onShowHelp: () -> Unit = {},
+    contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.foundation.layout.PaddingValues(0.dp),
+    onDebugTestImage: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var inputText by rememberSaveable(stateSaver = TextFieldValue.Saver) {
@@ -162,6 +166,7 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .padding(bottom = contentPadding.calculateBottomPadding())
                 .background(Background)
                 .imePadding()
         ) {
@@ -320,6 +325,7 @@ fun ChatScreen(
                 onPickImage = {
                     imagePickerLauncher.launch("image/*")
                 },
+                onDebugTestImage = onDebugTestImage,
                 enabled = !uiState.isLoading
             )
         }
@@ -597,6 +603,7 @@ private fun ChatInputBar(
     onValueChange: (TextFieldValue) -> Unit,
     onSend: () -> Unit,
     onPickImage: () -> Unit = {},
+    onDebugTestImage: (() -> Unit)? = null,
     enabled: Boolean
 ) {
     Row(
@@ -607,11 +614,21 @@ private fun ChatInputBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Image picker button
-        IconButton(
-            onClick = onPickImage,
-            enabled = enabled,
-            modifier = Modifier.size(48.dp)
+        // Image picker button (long-press for debug test image)
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .then(
+                    if (onDebugTestImage != null) {
+                        Modifier.combinedClickable(
+                            onClick = onPickImage,
+                            onLongClick = { onDebugTestImage() }
+                        )
+                    } else {
+                        Modifier.clickable(onClick = onPickImage)
+                    }
+                ),
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(android.R.drawable.ic_menu_gallery),
