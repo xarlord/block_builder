@@ -98,13 +98,25 @@ fun ChatScreen(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let { pickedUri ->
+            android.util.Log.d("PixelArt", "Image picked: $pickedUri")
+            // Show loading immediately
+            viewModel.setImageProcessing(true)
             // Process bitmap on IO thread to avoid blocking main thread
             coroutineScope.launch {
-                val result = withContext(Dispatchers.IO) {
-                    pixelArtComposer.processFromUri(context, pickedUri, "Pixel Art")
-                }
-                if (result != null) {
-                    viewModel.generateFromImage(result)
+                try {
+                    val result = withContext(Dispatchers.IO) {
+                        pixelArtComposer.processFromUri(context, pickedUri, "Pixel Art")
+                    }
+                    if (result != null) {
+                        android.util.Log.d("PixelArt", "Pipeline success: ${result.tileCount} tiles")
+                        viewModel.generateFromImage(result)
+                    } else {
+                        android.util.Log.e("PixelArt", "processFromUri returned null — bitmap decode failed")
+                        viewModel.setImageProcessingError("Failed to load image. Try a different photo.")
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("PixelArt", "Pipeline error", e)
+                    viewModel.setImageProcessingError("Image processing failed: ${e.message}")
                 }
             }
         }
@@ -209,6 +221,32 @@ fun ChatScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 "Generating composition...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+
+                // Image processing loading indicator
+                item {
+                    AnimatedVisibility(
+                        visible = uiState.isImageProcessing,
+                        enter = fadeIn(),
+                        exit = fadeOut()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = Accent
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Processing image...",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                             )

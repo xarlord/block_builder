@@ -37,7 +37,9 @@ data class ChatUiState(
     val error: String? = null,
     val isLlmConfigured: Boolean = false,
     /** Debug: pixel art processing result with intermediate bitmaps */
-    val pixelArtResult: com.architectai.core.data.pixelart.PixelArtResult? = null
+    val pixelArtResult: com.architectai.core.data.pixelart.PixelArtResult? = null,
+    /** Loading state specifically for image processing */
+    val isImageProcessing: Boolean = false
 )
 
 @HiltViewModel
@@ -99,7 +101,7 @@ class ChatViewModel @Inject constructor(
      */
     fun generateFromImage(result: com.architectai.core.data.pixelart.PixelArtResult) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true, isImageProcessing = false)
 
             try {
                 // Save the composition
@@ -362,6 +364,25 @@ class ChatViewModel @Inject constructor(
 
     fun clearComposition() {
         _uiState.value = _uiState.value.copy(generatedComposition = null)
+    }
+
+    /** Called when user picks an image — show loading spinner */
+    fun setImageProcessing(processing: Boolean) {
+        _uiState.value = _uiState.value.copy(isImageProcessing = processing)
+    }
+
+    /** Called when image processing fails — show error to user */
+    fun setImageProcessingError(message: String) {
+        _uiState.value = _uiState.value.copy(
+            isImageProcessing = false,
+            error = message,
+            messages = _uiState.value.messages + listOf(
+                ChatMessage(
+                    text = "⚠️ $message",
+                    isUser = false
+                )
+            )
+        )
     }
 
     fun getQuickSuggestions(): List<String> {
