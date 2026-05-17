@@ -118,9 +118,18 @@ class ChatViewModel @Inject constructor(
                     )
                 )
             } catch (e: Exception) {
+                // Still show pixel art debug card even if saving fails
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = "Failed to process image: ${e.message}"
+                    generatedComposition = result.composition,
+                    pixelArtResult = result,
+                    error = "Saved locally only: ${e.message}",
+                    messages = _uiState.value.messages + listOf(
+                        ChatMessage(
+                            text = "Generated pixel art: ${result.objectName} (${result.tileCount} tiles) — preview ready",
+                            isUser = false
+                        )
+                    )
                 )
             }
         }
@@ -175,6 +184,7 @@ class ChatViewModel @Inject constructor(
             messages = _uiState.value.messages + userMessage,
             isLoading = true,
             generatedComposition = null,
+            pixelArtResult = null,
             error = null
         )
 

@@ -46,12 +46,17 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -86,15 +91,21 @@ fun ChatScreen(
     var showSettingsDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val pixelArtComposer = remember { com.architectai.core.data.pixelart.PixelArtComposer() }
+    val coroutineScope = rememberCoroutineScope()
 
     // Image picker launcher
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            val result = pixelArtComposer.processFromUri(context, it, "Pixel Art")
-            if (result != null) {
-                viewModel.generateFromImage(result)
+        uri?.let { pickedUri ->
+            // Process bitmap on IO thread to avoid blocking main thread
+            coroutineScope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    pixelArtComposer.processFromUri(context, pickedUri, "Pixel Art")
+                }
+                if (result != null) {
+                    viewModel.generateFromImage(result)
+                }
             }
         }
     }
@@ -131,6 +142,13 @@ fun ChatScreen(
             )
         }
     ) { paddingValues ->
+        // Auto-scroll to bottom when new content arrives (pixel art result, composition, or messages)
+        LaunchedEffect(uiState.pixelArtResult, uiState.generatedComposition, uiState.messages.size) {
+            if (uiState.pixelArtResult != null || uiState.generatedComposition != null) {
+                listState.animateScrollToItem(listState.layoutInfo.totalItemsCount - 1)
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -193,6 +211,26 @@ fun ChatScreen(
                                 "Generating composition...",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+
+                // Error display
+                item {
+                    uiState.error?.let { errorMsg ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color(0xFFFFEBEE)
+                            )
+                        ) {
+                            Text(
+                                text = "⚠️ $errorMsg",
+                                modifier = Modifier.padding(12.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFC62828)
                             )
                         }
                     }
