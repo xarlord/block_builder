@@ -5,7 +5,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,8 +61,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -709,16 +706,7 @@ private fun PixelArtDebugCard(
                 style = MaterialTheme.typography.labelMedium,
                 color = Color(0xFFAAAAFF)
             )
-            Image(
-                bitmap = result.originalBitmap.asImageBitmap(),
-                contentDescription = "Original image",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF2A2A3E)),
-                contentScale = ContentScale.Fit
-            )
+            BitmapPanel(bitmap = result.originalBitmap, label = "original")
 
             HorizontalDivider(color = Color(0xFF333355))
 
@@ -728,16 +716,7 @@ private fun PixelArtDebugCard(
                 style = MaterialTheme.typography.labelMedium,
                 color = Color(0xFFAAAAFF)
             )
-            Image(
-                bitmap = result.pixelArtBitmap.asImageBitmap(),
-                contentDescription = "Pixel art preview",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF2A2A3E)),
-                contentScale = ContentScale.Fit
-            )
+            BitmapPanel(bitmap = result.pixelArtBitmap, label = "pixelArt")
 
             HorizontalDivider(color = Color(0xFF333355))
 
@@ -747,16 +726,7 @@ private fun PixelArtDebugCard(
                 style = MaterialTheme.typography.labelMedium,
                 color = Color(0xFFAAAAFF)
             )
-            Image(
-                bitmap = result.tileGridBitmap.asImageBitmap(),
-                contentDescription = "Tile grid preview",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF2A2A3E)),
-                contentScale = ContentScale.Fit
-            )
+            BitmapPanel(bitmap = result.tileGridBitmap, label = "tileGrid")
 
             HorizontalDivider(color = Color(0xFF333355))
 
@@ -808,6 +778,49 @@ private fun PixelArtDebugCard(
                 Text("View on Canvas", color = Color.White)
             }
         }
+    }
+}
+
+/**
+ * Reliable bitmap panel using native AndroidView + ImageView.
+ * Falls back to error text if bitmap is recycled or invalid.
+ */
+@Composable
+private fun BitmapPanel(bitmap: android.graphics.Bitmap, label: String) {
+    val isRecycled = bitmap.isRecycled
+    val sizeInfo = "${bitmap.width}×${bitmap.height}"
+
+    if (isRecycled) {
+        // Show error state instead of crashing
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(150.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF2A2A3E)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "⚠️ Bitmap recycled ($label)",
+                color = Color(0xFFFF6B6B),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    } else {
+        androidx.compose.ui.viewinterop.AndroidView(
+            factory = { ctx ->
+                android.widget.ImageView(ctx).apply {
+                    scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+                    setImageBitmap(bitmap)
+                    setBackgroundColor(0xFF2A2A3E.toInt())
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(150.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFF2A2A3E))
+        )
     }
 }
 
